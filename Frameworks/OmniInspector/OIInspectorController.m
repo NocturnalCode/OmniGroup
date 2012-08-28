@@ -1,4 +1,4 @@
-// Copyright 2002-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2002-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -27,6 +27,7 @@
 RCS_ID("$Id$");
 
 @interface OIInspectorController (/*Private*/) <OIInspectorHeaderViewDelegateProtocol>
+- (void)toggleVisibleAction:sender;
 - (void)_buildHeadingView;
 - (void)_buildWindow;
 - (NSView *)_inspectorView;
@@ -304,21 +305,10 @@ static BOOL animateInspectorToggles;
         
         // Record what was first responder in the inspector before we clear it.  We want to clear it since resigning first responder can cause controls to send actions and thus we want this happen *before* we change what would be affected by the action!
         oldResponder = [[[window firstResponder] retain] autorelease];
-        
-        // See if we're dealing with the field editor - if so, we really want to deal with the view it's handling editing for instead.
-        if ([oldResponder isKindOfClass:[NSText class]]) {
-            id responderDelegate = [(NSText *)oldResponder delegate];
-            if ([responderDelegate isKindOfClass:[NSSearchField class]]) {
-                oldResponder = nil;  // (Bug #32481)  don't make the window the first responder if user is typing in a search field because it ends editing
-                
-            } else if ([responderDelegate isKindOfClass:[NSView class]]) {
-                OBASSERT([(NSView *)responderDelegate window] == window);  // We'd never have a first responder who is an NSText who has an NSView as their delegate, where this isn't a field editor situation, right?
-                oldResponder = (NSResponder *)responderDelegate;
-            }
-        }
-        
-        // A nil oldResponder means "don't end editing"
-        if (oldResponder != nil) {
+        if ([oldResponder isKindOfClass:[NSTextView class]] &&
+            [[(NSTextView *)oldResponder delegate] isKindOfClass:[NSSearchField class]]) {
+            oldResponder = nil;  // (Bug #32481)  don't make the window the first responder if user is typing in a search field because it ends editing
+        } else {
             [window makeFirstResponder:window];
             
             // Since this is delayed, there is really no reasonable way for a NSResponder to refuse to resign here.  The selection has *already* changed!
@@ -326,9 +316,9 @@ static BOOL animateInspectorToggles;
         }
         
         [currentlyInspectedObjects release];
-        currentlyInspectedObjects = list; // takes ownership of the reference
-        list = nil;
+	currentlyInspectedObjects = list; // takes ownership of the reference
         [inspector inspectObjects:currentlyInspectedObjects];
+	list = nil;
     } NS_HANDLER {
         NSLog(@"-[%@ %@]: *** %@", [self class], NSStringFromSelector(_cmd), localException);
         [self inspectNothing];
@@ -336,12 +326,12 @@ static BOOL animateInspectorToggles;
 
     // Restore the old first responder, unless it was a view that is no longer in the view hierarchy
     if ([oldResponder isKindOfClass:[NSView class]]) {
-        NSView *view = (NSView *)oldResponder;
-        if ([view window] != window)
-            oldResponder = nil;
+	NSView *view = (NSView *)oldResponder;
+	if ([view window] != window)
+	    oldResponder = nil;
     }
     if (oldResponder)
-        [window makeFirstResponder:oldResponder];
+	[window makeFirstResponder:oldResponder];
     [list release];
 }
 
@@ -378,9 +368,10 @@ static BOOL animateInspectorToggles;
     return result;
 }
 
-#pragma mark - Internal
+#pragma mark -
+#pragma mark Private
 
-- (IBAction)toggleVisibleAction:(id)sender;
+- (void)toggleVisibleAction:sender;
 {
     BOOL didExpand = NO;
     if (!isExpanded) {
@@ -400,8 +391,6 @@ static BOOL animateInspectorToggles;
         }
     }
 }
-
-#pragma mark - Private
 
 - (void)_buildHeadingView;
 {
@@ -569,8 +558,7 @@ static BOOL animateInspectorToggles;
         [headingBackground setNeedsDisplay:YES];
     }
     
-    [[OIInspectorRegistry sharedInspector] configurationsChanged];
-    
+    [[OIInspectorRegistry sharedInspector] defaultsDidChange];
     [group setScreenChangesEnabled:YES];
     isSettingExpansion = NO;
 }
@@ -585,12 +573,6 @@ static BOOL animateInspectorToggles;
 }
 
 #pragma mark NSWindow delegate
-
-- (void)windowDidMove:(NSNotification *)notification;
-{
-    OIInspectorRegistry *registry = [OIInspectorRegistry sharedInspector];
-    [registry configurationsChanged]; 
-}
 
 - (void)windowWillClose:(NSNotification *)notification;
 {

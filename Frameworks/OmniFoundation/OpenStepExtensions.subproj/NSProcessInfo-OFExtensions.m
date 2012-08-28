@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2007, 2010, 2012 Omni Development, Inc.  All rights reserved.
+// Copyright 1997-2005, 2007, 2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -6,14 +6,10 @@
 // <http://www.omnigroup.com/developer/sourcecode/sourcelicense/>.
 
 #import <OmniFoundation/NSProcessInfo-OFExtensions.h>
-#import <Security/SecCode.h> // For SecCodeCopySelf()
-#import <Security/SecRequirement.h> // For SecRequirementCreateWithString()
 
 // This is not included in OmniBase.h since system.h shouldn't be used except when covering OS specific behaviour
 #import <OmniBase/system.h>
 #import <OmniBase/assertions.h>
-#import <OmniFoundation/NSFileManager-OFExtensions.h>
-#import <OmniFoundation/OFVersionNumber.h>
 
 RCS_ID("$Id$")
 
@@ -38,56 +34,5 @@ static NSString *_replacement_hostName(NSProcessInfo *self, SEL _cmd)
     // Don't assume the pid is 16 bits since it might be 32.
     return [NSNumber numberWithInt:getpid()];
 }
-
-- (BOOL)isSandboxed;
-{
-    // N.B. Using the method in our NSFileManager extensions could possibly return a different answer than using the SecCodeCopySelf that was previously here, but we likely don't care about those cases.
-    static BOOL isSandboxed;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        NSError *error = nil;
-        NSURL *applicationURL = [[NSBundle mainBundle] bundleURL];
-        if (![[NSFileManager defaultManager] getSandboxed:&isSandboxed forApplicationAtURL:applicationURL error:&error]) {
-            NSLog(@"Error determining if current process is sandboxed (assuming YES): %@", error);
-            isSandboxed = YES;
-        }
-    });
-    return isSandboxed;
-}
-
-- (NSDictionary *)codeSigningInfoDictionary;
-{
-    static NSDictionary *codeSigningInfoDictionary = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        NSError *error = nil;
-        NSDictionary *dict = [[NSBundle mainBundle] codeSigningInfoDictionary:&error];
-        if (dict == nil) {
-            NSLog(@"Error retrieving code signing information for current process: %@", error);
-        } else {
-            codeSigningInfoDictionary = [dict copy];
-        }
-    });
-
-    return codeSigningInfoDictionary;
-}
-
-- (NSDictionary *)codeSigningEntitlements;
-{
-    static NSDictionary *codeSigningEntitlements = nil;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{
-        NSError *error = nil;
-        NSDictionary *dict = [[NSBundle mainBundle] codeSigningEntitlements:&error];
-        if (dict == nil) {
-            NSLog(@"Error retrieving code signing information for current process: %@", error);
-        } else {
-            codeSigningEntitlements = [dict copy];
-        }
-    });
-    
-    return codeSigningEntitlements;
-}
-
 
 @end

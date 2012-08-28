@@ -1,4 +1,4 @@
-// Copyright 2008-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2008-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -11,7 +11,6 @@
 #import <OmniFoundation/NSString-OFReplacement.h>
 #import <OmniFoundation/NSString-OFSimpleMatching.h>
 #import <OmniFoundation/NSMutableDictionary-OFExtensions.h>
-#import <OmniFoundation/OFUTI.h>
 #import <OmniFoundation/OFNull.h>
 
 #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
@@ -21,6 +20,8 @@
 RCS_ID("$Id$");
 
 @implementation OFSFileInfo
+
+static NSMutableDictionary *_NativeUTIForFileExtension;
 
 + (NSString *)nameForURL:(NSURL *)url;
 {
@@ -37,7 +38,45 @@ RCS_ID("$Id$");
     return name;
 }
 
-- initWithOriginalURL:(NSURL *)url name:(NSString *)name exists:(BOOL)exists directory:(BOOL)directory size:(off_t)size lastModifiedDate:(NSDate *)date eTag:(NSString *)eTag;
+static NSString *UTIForFileExtension(NSString *fileExtension)
+{
+    if (fileExtension == nil)
+        return nil;
+
+    NSString *nativeUTI = [_NativeUTIForFileExtension objectForKey:fileExtension];
+    if (nativeUTI != nil)
+        return nativeUTI;
+
+    // Not a registered native UTI; try asking LaunchServices
+    CFStringRef fileUTI = UTTypeCreatePreferredIdentifierForTag(kUTTagClassFilenameExtension, (CFStringRef)fileExtension, NULL);
+    return [NSMakeCollectable(fileUTI) autorelease];
+}
+
++ (NSString *)UTIForFilename:(NSString *)filename;
+{
+    NSString *fileExtension = [filename pathExtension];
+    NSString *fileUTI = UTIForFileExtension(fileExtension);
+    if (fileUTI != nil && UTTypeConformsTo((CFStringRef)fileUTI, kUTTypeArchive)) {    // only supporting zip files including an extension that we recognize (so, if user uses Finder to compress, will end up with 'filename.graffle.zip') 
+        NSString *unarchivedFilename = [filename stringByDeletingPathExtension];
+        fileUTI = UTIForFileExtension([unarchivedFilename pathExtension]);
+    }
+    return fileUTI;
+}
+
++ (NSString *)UTIForURL:(NSURL *)url;
+{
+    return [self UTIForFilename:[self nameForURL:url]];
+}
+
++ (void)registerNativeUTI:(NSString *)UTI forFileExtension:(NSString *)fileExtension;
+{
+    if (_NativeUTIForFileExtension == nil)
+        _NativeUTIForFileExtension = [[NSMutableDictionary alloc] init];
+
+    [_NativeUTIForFileExtension setObject:UTI forKey:fileExtension];
+}
+
+- initWithOriginalURL:(NSURL *)url name:(NSString *)name exists:(BOOL)exists directory:(BOOL)directory size:(off_t)size lastModifiedDate:(NSDate *)date;
 {
     OBPRECONDITION(url);
     OBPRECONDITION(!directory || size == 0);
@@ -54,14 +93,8 @@ RCS_ID("$Id$");
     _directory = directory;
     _size = size;
     _lastModifiedDate = [date copy];
-    _eTag = [eTag copy];
     
     return self;
-}
-
-- initWithOriginalURL:(NSURL *)url name:(NSString *)name exists:(BOOL)exists directory:(BOOL)directory size:(off_t)size lastModifiedDate:(NSDate *)date;
-{
-    return [self initWithOriginalURL:url name:name exists:exists directory:directory size:size lastModifiedDate:date eTag:nil];
 }
 
 - (void)dealloc;
@@ -69,17 +102,38 @@ RCS_ID("$Id$");
     [_originalURL release];
     [_name release];
     [_lastModifiedDate release];
-    [_eTag release];
     [super dealloc];
 }
 
-@synthesize originalURL = _originalURL;
-@synthesize name = _name;
-@synthesize exists = _exists;
-@synthesize isDirectory = _directory;
-@synthesize size = _size;
-@synthesize lastModifiedDate = _lastModifiedDate;
-@synthesize eTag = _eTag;
+- (NSURL *)originalURL;
+{
+    return _originalURL;
+}
+
+- (NSString *)name;
+{
+    return _name;
+}
+
+- (BOOL)exists;
+{
+    return _exists;
+}
+
+- (BOOL)isDirectory;
+{
+    return _directory;
+}
+
+- (off_t)size;
+{
+    return _size;
+}
+
+- (NSDate *)lastModifiedDate;
+{
+    return _lastModifiedDate;
+}
 
 - (BOOL)hasExtension:(NSString *)extension;
 {
@@ -88,7 +142,7 @@ RCS_ID("$Id$");
 
 - (NSString *)UTI;
 {
-    return OFUTIForFileExtensionPreferringNative([_name pathExtension], [NSNumber numberWithBool:_directory]);
+    return [OFSFileInfo UTIForFilename:_name];
 }
 
 - (NSComparisonResult)compareByURLPath:(OFSFileInfo *)otherInfo;
@@ -98,7 +152,7 @@ RCS_ID("$Id$");
 
 - (NSComparisonResult)compareByName:(OFSFileInfo *)otherInfo;
 {
-    return [_name localizedStandardCompare:[otherInfo name]];
+    return [_name caseInsensitiveCompare:[otherInfo name]];
 }
 
 - (NSString *)shortDescription;
@@ -128,9 +182,6 @@ RCS_ID("$Id$");
 
 NSURL *OFSURLRelativeToDirectoryURL(NSURL *baseURL, NSString *quotedFileName)
 {
-    if (!baseURL || !quotedFileName)
-        return nil;
-    
     NSMutableString *urlString = [[baseURL absoluteString] mutableCopy];
     NSRange pathRange = OFSURLRangeOfPath(urlString);
     

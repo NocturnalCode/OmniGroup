@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2008, 2009-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2005, 2008, 2009-2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -63,22 +63,6 @@ OFRandomState *OFRandomStateCreateWithSeed32(const uint32_t *seed, uint32_t coun
     return (OFRandomState *)state;
 }
 
-OFRandomState *OFRandomStateDuplicate(OFRandomState *oldstate_)
-{
-    if (!oldstate_)
-        return NULL;
-    
-    SFMTState *oldstate = (SFMTState *)oldstate_;
-    SFMTState *newstate = calloc(sizeof(*newstate), 1);
-    memcpy(newstate, oldstate, sizeof(*newstate));
-    newstate->psfmt32 = &newstate->sfmt[0].u[0] + ( oldstate->psfmt32 - &oldstate->sfmt[0].u[0] );
-#if !defined(BIG_ENDIAN64) || defined(ONLY64)
-    newstate->psfmt64 = (uint64_t *)&newstate->sfmt[0].u[0] + ( oldstate->psfmt64 - (uint64_t *)&oldstate->sfmt[0].u[0] );
-#endif
-
-    return (OFRandomState *)newstate;
-}
-
 void OFRandomStateDestroy(OFRandomState *state)
 {
     SFMTStateDestroy((SFMTState *)state);
@@ -93,17 +77,6 @@ uint32_t OFRandomNextState32(OFRandomState *state)
 uint64_t OFRandomNextState64(OFRandomState *state)
 {
     return gen_rand64((SFMTState *)state);
-}
-
-unsigned int OFRandomNextStateN(OFRandomState *state, unsigned int n)
-{
-    OBASSERT(n > 0);
-    uint64_t uniform = gen_rand64((SFMTState *)state);
-    if ( (n & (n-1)) == 0 ) {
-        return (unsigned int)uniform & (n-1);
-    } else {
-        return (unsigned int)( uniform % n );
-    }
 }
 
 // [0,1) with 53-bits resolution

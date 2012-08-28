@@ -8,20 +8,20 @@
 #import "OUIDocumentPickerDragSession.h"
 
 #import <OmniFoundation/OFExtent.h>
-#import <OmniFileStore/OFSDocumentStore.h>
-#import <OmniFileStore/OFSDocumentStoreFileItem.h>
-#import <OmniFileStore/OFSDocumentStoreGroupItem.h>
 #import <OmniUI/OUIAnimationSequence.h>
 #import <OmniUI/OUIAppController.h>
 #import <OmniUI/OUIDocumentPicker.h>
 #import <OmniUI/OUIDocumentPickerFileItemView.h>
 #import <OmniUI/OUIDocumentPreviewView.h>
+#import <OmniUI/OUIDocumentStore.h>
+#import <OmniUI/OUIDocumentStoreFileItem.h>
 #import <OmniUI/OUIDragGestureRecognizer.h>
 #import <OmniUI/UIGestureRecognizer-OUIExtensions.h>
 #import <OmniUI/UIScrollView-OUIExtensions.h>
 #import <OmniUI/UIView-OUIExtensions.h>
 
 #import "OUIDocumentPickerItemView-Internal.h"
+#import "OUIDocumentStoreGroupItem.h"
 
 RCS_ID("$Id$");
 
@@ -122,7 +122,7 @@ RCS_ID("$Id$");
         OUIDocumentPickerScrollView *pickerScrollView = _picker.activeScrollView;
         
         NSMutableArray *fileItemViews = [[NSMutableArray alloc] init];
-        for (OFSDocumentStoreFileItem *fileItem in _fileItems) {
+        for (OUIDocumentStoreFileItem *fileItem in _fileItems) {
             fileItem.draggingSource = YES;
             
             OUIDocumentPickerFileItemView *originalFileItemView = [pickerScrollView fileItemViewForFileItem:fileItem];
@@ -174,10 +174,10 @@ RCS_ID("$Id$");
     // Adjust the postion of the drag.
     CGPoint dragPoint = [_dragRecognizer locationInView:pickerScrollView];
     for (OUIDocumentPickerFileItemView *fileItemView in _fileItemViews) {
-        OFSDocumentStoreFileItem *fileItem = (OFSDocumentStoreFileItem *)fileItemView.item;
-        OBASSERT([fileItem isKindOfClass:[OFSDocumentStoreFileItem class]]);
+        OUIDocumentStoreFileItem *fileItem = (OUIDocumentStoreFileItem *)fileItemView.item;
+        OBASSERT([fileItem isKindOfClass:[OUIDocumentStoreFileItem class]]);
         
-        CGRect frame = [_picker.mainScrollView frameForItem:fileItem]; // normal position
+        CGRect frame = fileItem.frame; // normal position
         
         frame.origin.x = dragPoint.x - _startingOffsetWithinDraggingFileItemView.x;
         frame.origin.y = dragPoint.y - _startingOffsetWithinDraggingFileItemView.y;
@@ -188,7 +188,7 @@ RCS_ID("$Id$");
     // Hit test the original file items and see if we are over something
     {
         OUIDocumentPickerItemView *itemView = [_picker.activeScrollView itemViewHitInPreviewAreaByRecognizer:_dragRecognizer];
-        OFSDocumentStoreItem *item = itemView.item;
+        OUIDocumentStoreItem *item = itemView.item;
         
         id dragDestinationItem = nil;
         if (item && [_fileItems member:item] == nil)
@@ -233,10 +233,10 @@ RCS_ID("$Id$");
          ^{
              for (OUIDocumentPickerFileItemView *fileItemView in _fileItemViews) {
                  // Don't ask for the original item view; the rect for where that would appear may be off screen and the scroll view may not have a view assigned to that file.
-                 OFSDocumentStoreFileItem *fileItem = (OFSDocumentStoreFileItem *)fileItemView.item;
-                 OBASSERT([fileItem isKindOfClass:[OFSDocumentStoreFileItem class]]);
+                 OUIDocumentStoreFileItem *fileItem = (OUIDocumentStoreFileItem *)fileItemView.item;
+                 OBASSERT([fileItem isKindOfClass:[OUIDocumentStoreFileItem class]]);
 
-                 fileItemView.frame = [_picker.mainScrollView frameForItem:fileItem];
+                 fileItemView.frame = fileItem.frame;
              }
          },
          ^{
@@ -246,19 +246,19 @@ RCS_ID("$Id$");
         return;
     }
     
-    if ([_dragDestinationItem isKindOfClass:[OFSDocumentStoreFileItem class]]) {
+    if ([_dragDestinationItem isKindOfClass:[OUIDocumentStoreFileItem class]]) {
         // make a new group
-        [_picker.documentStore makeGroupWithFileItems:[_fileItems setByAddingObject:_dragDestinationItem] completionHandler:^(OFSDocumentStoreGroupItem *group, NSError *error){
+        [_picker.documentStore makeGroupWithFileItems:[_fileItems setByAddingObject:_dragDestinationItem] completionHandler:^(OUIDocumentStoreGroupItem *group, NSError *error){
             if (!group) {
                 OUI_PRESENT_ERROR(error);
             } else {
                 OBFinishPortingLater("after various animations, the group expands to be given an initial name"); OB_UNUSED_VALUE(group);
             }
         }];
-    } else if ([_dragDestinationItem isKindOfClass:[OFSDocumentStoreGroupItem class]]) {
+    } else if ([_dragDestinationItem isKindOfClass:[OUIDocumentStoreGroupItem class]]) {
         // add to an existing group
-        OFSDocumentStoreGroupItem *group = _dragDestinationItem;
-        [_picker.documentStore moveItems:_fileItems toFolderNamed:group.name completionHandler:^(OFSDocumentStoreGroupItem *group, NSError *error){
+        OUIDocumentStoreGroupItem *group = _dragDestinationItem;
+        [_picker.documentStore moveItems:_fileItems toFolderNamed:group.name completionHandler:^(OUIDocumentStoreGroupItem *group, NSError *error){
             OBFinishPortingLater("Do some animation/report error");
         }];
     } else if (!_dragDestinationItem) {
@@ -281,7 +281,7 @@ RCS_ID("$Id$");
         for (OUIDocumentPickerFileItemView *fileItemView in _fileItemViews)
             [fileItemView removeFromSuperview];
     
-        for (OFSDocumentStoreFileItem *fileItem in _fileItems) {
+        for (OUIDocumentStoreFileItem *fileItem in _fileItems) {
             fileItem.draggingSource = NO;
             
             OUIDocumentPickerFileItemView *originalFileItemView = [pickerScrollView fileItemViewForFileItem:fileItem];

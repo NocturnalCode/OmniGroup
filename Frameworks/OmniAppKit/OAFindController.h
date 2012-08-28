@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2008, 2010, 2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2005, 2008, 2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -17,28 +17,29 @@
 
 @class NSButton, NSForm, NSWindow, NSMatrix, NSPopUpButton, NSTextField, NSBox, NSView;
 
+#import <AppKit/NSNibDeclarations.h> // For IBOutlet
 #import <OmniAppKit/OAFindControllerTargetProtocol.h>
 
 @interface OAFindController : OFObject
 {
-    NSWindow *_findPanel;
-    NSForm *_searchTextForm;
-    NSForm *_replaceTextForm;
-    NSButton *_ignoreCaseButton;
-    NSButton *_wholeWordButton;
-    NSButton *_findNextButton;
-    NSButton *_findPreviousButton;
-    NSButton *_replaceAllButton;
-    NSButton *_replaceButton;
-    NSButton *_replaceAndFindButton;
-    NSMatrix *_findTypeMatrix;
-    NSPopUpButton *_subexpressionPopUp;
-    NSButton *_replaceInSelectionCheckbox;
-    NSBox *_additionalControlsBox;
-    NSView *_stringControlsView;
-    NSView *_regularExpressionControlsView;
+    IBOutlet NSWindow *findPanel;
+    IBOutlet NSForm *searchTextForm;
+    IBOutlet NSForm *replaceTextForm;
+    IBOutlet NSButton *ignoreCaseButton;
+    IBOutlet NSButton *wholeWordButton;
+    IBOutlet NSButton *findNextButton;
+    IBOutlet NSButton *findPreviousButton;
+    IBOutlet NSButton *replaceAllButton;
+    IBOutlet NSButton *replaceButton;
+    IBOutlet NSButton *replaceAndFindButton;
+    IBOutlet NSMatrix *findTypeMatrix;
+    IBOutlet NSPopUpButton *subexpressionPopUp;
+    IBOutlet NSButton *replaceInSelectionCheckbox;
+    IBOutlet NSBox *additionalControlsBox;
+    IBOutlet NSView *stringControlsView;
+    IBOutlet NSView *regularExpressionControlsView;
     
-    id <OAFindPattern> _currentPattern;
+    id <OAFindPattern> currentPattern;
 }
 
 // Menu actions

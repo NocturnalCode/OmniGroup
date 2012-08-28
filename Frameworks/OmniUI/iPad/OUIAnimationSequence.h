@@ -10,7 +10,6 @@
 #import <OmniFoundation/OFObject.h>
 
 extern const NSTimeInterval OUIAnimationSequenceDefaultDuration;
-extern const NSTimeInterval OUIAnimationSequenceImmediateDuration; // Run synchronously w/o animating
 
 @interface OUIAnimationSequence : OFObject
 {

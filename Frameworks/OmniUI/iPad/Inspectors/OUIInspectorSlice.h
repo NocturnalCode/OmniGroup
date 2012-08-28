@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -19,8 +19,6 @@
     OUIInspectorPane *_detailPane;
 }
 
-+ (instancetype)slice;
-
 @property(readonly,nonatomic) OUIStackedSlicesInspectorPane *containingPane; // Set by the containing inspector pane
 @property(readonly,nonatomic) OUIInspector *inspector;
 
@@ -32,7 +30,6 @@
 - (CGFloat)paddingToInspectorBottom; // For the bottom slice
 - (CGFloat)paddingToPreviousSlice:(OUIInspectorSlice *)previousSlice remainingHeight:(CGFloat)remainingHeight;
 - (CGFloat)paddingToInspectorSides; // Left/right
-- (CGFloat)minimumHeightForWidth:(CGFloat)width; // The minimum height the slice can have. Defaults to kOUIInspectorWellHeight for height-sizeable views, or the view's current height for non-sizeable views.
 
 - (void)sizeChanged;
 

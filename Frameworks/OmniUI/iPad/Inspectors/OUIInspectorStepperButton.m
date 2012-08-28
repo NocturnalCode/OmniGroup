@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -8,40 +8,37 @@
 #import <OmniUI/OUIInspectorStepperButton.h>
 
 #import <OmniUI/OUIDrawing.h>
+#import <UIKit/UIKit.h>
+#import <OmniBase/OmniBase.h>
 #import <OmniQuartz/OQDrawing.h>
 
 RCS_ID("$Id$");
 
-@interface OUIInspectorStepperButton ()
-- (void)_rebuildImage; // Forward declared so that C functions can call it
+@interface OUIInspectorStepperButton (/*Private*/)
+- (void)_makeLabel;
+- (void)_initialRepeatTimerFired:(NSTimer *)timer;
+- (void)_followingRepeatTimerFired:(NSTimer *)timer;
+- (void)_cancelRepeat;
+- (void)_rebuildImage;
 @end
 
 @implementation OUIInspectorStepperButton
-{
-    BOOL _flipped;
-    BOOL _repeats;
-    
-    NSTimer *_repeatTimer;
-    
-    UILabel *_label;
-    UIImage *_image;
-    
-    UIImage *_cachedImage;
-}
 
 static const NSTimeInterval kTimeToPauseBeforeInitialRepeat = 0.5;
 static const NSTimeInterval kTimeToPauseBetweenFollowingRepeats = 0.25;
-
-static UIImage *_stepperImage(void)
-{
-    UIImage *image = [UIImage imageNamed:@"OUIInspectorStepper.png"];
-    OBASSERT(image);
-    return image;
-}
+static UIImage *StepperImage = nil;
 
 + (CGSize)stepperButtonSize;
 {
-    return [_stepperImage() size];
+    OBASSERT(StepperImage);
+    return [StepperImage size];
+}
+
++ (void)initialize;
+{
+    OBINITIALIZE;
+    
+    StepperImage = [[UIImage imageNamed:@"OUIInspectorStepper.png"] retain];
 }
 
 static id _commonInit(OUIInspectorStepperButton *self)
@@ -214,7 +211,7 @@ static id _commonInit(OUIInspectorStepperButton *self)
 
 - (void)_rebuildImage;
 {
-    OBPRECONDITION(CGSizeEqualToSize(self.bounds.size, _stepperImage().size)); // Don't stretch this image as it has gradients going both vertically and horizontally.
+    OBPRECONDITION(CGSizeEqualToSize(self.bounds.size, StepperImage.size)); // Don't stretch this image as it has gradients going both vertically and horizontally.
     
     // We could maybe just set this once in -drawRect:, but that scares me since we'd maybe be queuing a display request while servicing one. This isn't performance critical anyway.
     [_cachedImage release];
@@ -239,8 +236,11 @@ static id _commonInit(OUIInspectorStepperButton *self)
             CGContextScaleCTM(ctx, -1, 1);
             CGContextTranslateCTM(ctx, -cacheSize.width, 0);
         }
-                        
-        [_stepperImage() drawInRect:cacheRect];
+        
+        UIImage *stepperImage = [UIImage imageNamed:@"OUIInspectorStepper.png"];
+        OBASSERT(stepperImage);
+                
+        [stepperImage drawInRect:cacheRect];
         
         if (_flipped) {
             CGContextRestoreGState(ctx);

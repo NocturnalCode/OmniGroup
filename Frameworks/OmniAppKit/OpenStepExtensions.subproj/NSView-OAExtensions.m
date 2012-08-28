@@ -1,4 +1,4 @@
-// Copyright 1997-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -11,7 +11,6 @@
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 #import <OmniBase/OmniBase.h>
-#import <OmniBase/macros.h>
 #import <OmniFoundation/OmniFoundation.h>
 
 #import <OmniAppKit/NSFont-OAExtensions.h>
@@ -126,29 +125,28 @@ static unsigned int scrollEntriesCount = 0;
 
 - (OADeferredScrollEntry *)_deferredScrollEntry;
 {
+    OADeferredScrollEntry *deferredScrollEntry;
+
     if (scrollEntriesAllocated == 0) {
         scrollEntriesAllocated = 8;
         scrollEntries = malloc(scrollEntriesAllocated * sizeof(*scrollEntries));
-        OBASSERT(scrollEntriesCount == 0);
     }
-
-    OADeferredScrollEntry *deferredScrollEntry = scrollEntries + scrollEntriesCount;
+    deferredScrollEntry = scrollEntries + scrollEntriesCount;
     while (deferredScrollEntry-- > scrollEntries)
         if (deferredScrollEntry->view == self)
             return deferredScrollEntry;
 
     // We didn't find an existing entry, let's make a new one
     if (scrollEntriesCount == scrollEntriesAllocated) {
-        scrollEntriesAllocated *= 2;
+        scrollEntriesAllocated = scrollEntriesCount + scrollEntriesCount;
         scrollEntries = realloc(scrollEntries, scrollEntriesAllocated * sizeof(*scrollEntries));
     }
-
-    OADeferredScrollEntry *newScrollEntry = scrollEntries + scrollEntriesCount;
-    newScrollEntry->view = [self retain];
-    newScrollEntry->x = 0.0f;
-    newScrollEntry->y = 0.0f;
+    deferredScrollEntry = scrollEntries + scrollEntriesCount;
+    deferredScrollEntry->view = [self retain];
+    deferredScrollEntry->x = 0.0f;
+    deferredScrollEntry->y = 0.0f;
     scrollEntriesCount++;
-    return newScrollEntry;
+    return deferredScrollEntry;
 }
 
 - (void)_scrollByAdjustedPixelsDown:(CGFloat)downPixels right:(CGFloat)rightPixels;
@@ -303,7 +301,7 @@ static unsigned int scrollEntriesCount = 0;
         scrollPosition.y = (NSMinY(documentVisibleRect) - NSMinY(bounds)) / (NSHeight(bounds) - NSHeight(documentVisibleRect));
         if (![self isFlipped])
             scrollPosition.y = 1.0f - scrollPosition.y;
-        scrollPosition.y = CLAMP(scrollPosition.y, 0, 1);
+        scrollPosition.y = MIN(MAX(scrollPosition.y, 0.0f), 1.0f);
     }
 
     // Horizontal position
@@ -311,7 +309,7 @@ static unsigned int scrollEntriesCount = 0;
         scrollPosition.x = 0.0f; // We're completely visible
     } else {
         scrollPosition.x = (NSMinX(documentVisibleRect) - NSMinX(bounds)) / (NSWidth(bounds) - NSWidth(documentVisibleRect));
-        scrollPosition.x = CLAMP(scrollPosition.x, 0, 1);
+        scrollPosition.x = MIN(MAX(scrollPosition.x, 0.0f), 1.0f);
     }
 
     return scrollPosition;
@@ -359,7 +357,7 @@ static unsigned int scrollEntriesCount = 0;
     CGFloat fraction = (NSMinY(visibleRect) - NSMinY(bounds)) / (NSHeight(bounds) - NSHeight(visibleRect));
     if (![self isFlipped])
         fraction = 1.0f - fraction;
-    return CLAMP(fraction, 0, 1);
+    return MIN(MAX(fraction, 0.0f), 1.0f);
 }
 
 - (void)setFraction:(CGFloat)fraction;
@@ -369,7 +367,7 @@ static unsigned int scrollEntriesCount = 0;
     if (NSHeight(desiredRect) >= NSHeight(bounds))
         return; // We're entirely visible
 
-    fraction = CLAMP(fraction, 0, 1);
+    fraction = MIN(MAX(fraction, 0.0f), 1.0f);
     if (![self isFlipped])
         fraction = 1.0f - fraction;
     desiredRect.origin.y = NSMinY(bounds) + fraction * (NSHeight(bounds) - NSHeight(desiredRect));

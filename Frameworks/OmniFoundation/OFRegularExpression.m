@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2007-2008, 2010-2012 Omni Development, Inc.  All rights reserved.
+// Copyright 1997-2005, 2007-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -86,7 +86,6 @@ static inline void writeCharacter(CompileStatus *compile, unichar character)
         if (!compile->wroteArgument) {
             NSUInteger length = (compile->stringPtr - compile->stringPtrBase);
             OBASSERT(length <= UINT32_MAX);
-            OBASSERT_NOTNULL(compile->writePtr);
             compile->writePtr->string = (uint32_t)length;
             compile->writePtr++;
             compile->wroteArgument = YES;
@@ -125,14 +124,14 @@ static inline void setNextPointer(ExpressionState *scan, const ExpressionState *
     while ((temp = nextState(scan)))
         scan = temp;
     
-    ptrdiff_t nextStateIndex;
+    ptrdiff_t nextState;
     if (scan->opCode == OpBack)
-        nextStateIndex = scan - value;
+        nextState = scan - value;
     else
-        nextStateIndex = value - scan;
+        nextState = value - scan;
     
-    OBASSERT(nextStateIndex < (1<<16));
-    scan->nextState = (unsigned)nextStateIndex;
+    OBASSERT(nextState < (1<<16));
+    scan->nextState = (unsigned)nextState;
 }
 
 static inline void setNextPointerOnArgument(ExpressionState *scan, const ExpressionState *value)
@@ -725,41 +724,39 @@ static inline BOOL unicodeSubstring(unichar *substring, unichar *string)
     }
 }
 
-- (NSString *)description;
-{
-    ExpressionOpCode operator = OpStartOfLine; // arbitrary non End op
-    ExpressionState *next, *state = program;
-    NSMutableString *result = [NSMutableString string];
-    
-    OBASSERT_NOTNULL(program);
-    
-    while (operator != OpEnd) {
-        [result appendFormat:@"%2td:%@", state - program, [self descriptionOfState:state]];
-        next = nextState(state);
-        if (next)
-            [result appendFormat:@"(%td)", next - program];
-        else
-            [result appendString:@"(0)"];
-        operator = state->opCode;
-        if (operator == OpAnyOfString || operator == OpAnyButString || operator == OpExactlyString) {
-            unichar *string = STRING_PARAMETER(state);
-            NSUInteger length = unicodeStringLength(string);
-            
-            [result appendString:[NSString stringWithCharacters:string length:length]];
-            state++;
-        }
-        [result appendString:@"\n"];
-        state++;
-    } 
-    if (startCharacter)
-        [result appendFormat:@"Starts with '%c' ", startCharacter];
-    if (matchStartsLine)
-        [result appendString:@"anchored "];
-    if (matchString)
-        [result appendFormat:@"must have \"%@\"", [NSString stringWithCharacters:matchString length:unicodeStringLength(matchString)]];
-    [result appendString:@"\n"];
-    return result;
-}
+//- (NSString *)description;
+//{
+//    ExpressionOpCode operator = OpStartOfLine; // arbitrary non End op
+//    ExpressionState *next, *state = program;
+//    NSMutableString *result = [NSMutableString string];
+//    
+////    while (operator != OpEnd) {
+////        [result appendFormat:@"%2d:%@", state - program, [self descriptionOfState:state]];
+////        next = nextState(state);
+////        if (next)
+////            [result appendFormat:@"(%d)", next - program];
+////        else
+////            [result appendString:@"(0)"];
+////        operator = state->opCode;
+////        if (operator == OpAnyOfString || operator == OpAnyButString || operator == OpExactlyString) {
+////            unichar *string = STRING_PARAMETER(state);
+////            NSUInteger length = unicodeStringLength(string);
+////            
+////            [result appendString:[NSString stringWithCharacters:string length:length]];
+////            state++;
+////        }
+////        [result appendString:@"\n"];
+////        state++;
+////    } 
+//    if (startCharacter)
+//        [result appendFormat:@"Starts with '%c' ", startCharacter];
+//    if (matchStartsLine)
+//        [result appendString:@"anchored "];
+//    if (matchString)
+//        [result appendFormat:@"must have \"%@\"", [NSString stringWithCharacters:matchString length:unicodeStringLength(matchString)]];
+//    [result appendString:@"\n"];
+//    return result;
+//}
 
 @end
 

@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -29,7 +29,7 @@ RCS_ID("$Id$");
 }
 
 @synthesize themes = _themes;
-- (void)setThemes:(NSArray *)themes;
+- (void)setThemems:(NSArray *)themes;
 {
     if (OFISEQUAL(_themes, themes))
         return;
@@ -74,27 +74,22 @@ RCS_ID("$Id$");
     // Don't check every color, just the most important one.
     OQColor *color = selectionValue.firstValue;
     
-    // Note the location of the first matching view, so we can scroll to it.
-    CGRect rectToScrollTo = CGRectNull;
-    
-    for (UIView *themeView in _themeViews) {
-        if ([themeView isKindOfClass:[OUIColorSwatchPicker class]]) {
-            OUIColorSwatchPicker *swatchPicker = (OUIColorSwatchPicker *)themeView;
+    for (UIView *view in _themeViews) {
+        if ([view isKindOfClass:[OUIColorSwatchPicker class]]) {
+            OUIColorSwatchPicker *swatchPicker = (OUIColorSwatchPicker *)view;
             [swatchPicker setSwatchSelectionColor:color];
             
-            if (CGRectIsNull(rectToScrollTo) && [swatchPicker hasMatchForColor:color]) {
-                rectToScrollTo = [self.view convertRect:swatchPicker.bounds fromView:swatchPicker];
-                rectToScrollTo = CGRectInset(rectToScrollTo, 0, -16); // UIScrollView scrolls as little as needed; include some padding.
+            if ([swatchPicker hasMatchForColor:color]) {                
+                UIScrollView *view = (UIScrollView *)self.view;
+                
+                BOOL animate = (view.window != nil);
+
+                CGRect rect = [view convertRect:swatchPicker.bounds fromView:swatchPicker];
+                rect = CGRectInset(rect, 0, -16); // UIScrollView scrolls as little as needed; include some padding.
+                [view scrollRectToVisible:rect animated:animate];
             }
         }
     }
-    
-    if(!CGRectIsNull(rectToScrollTo))
-    {
-        BOOL animate = (self.view.window != nil);
-        [(UIScrollView *)self.view scrollRectToVisible:rectToScrollTo animated:animate];
-    }
-
 }
 
 #pragma mark -
@@ -136,7 +131,7 @@ RCS_ID("$Id$");
     _themeViews = nil;
 
     const CGFloat kLabelToPaletteSpacing = 5;
-    const CGFloat kInterThemeSpacing = 12;
+    const CGFloat kInterThemeSpacing = 13;
     
     UIFont *labelFont = [UIFont fontWithName:@"Helvetica Neue" size:16];
     UIScrollView *view = (UIScrollView *)self.view;
@@ -146,7 +141,7 @@ RCS_ID("$Id$");
     
     CGRect viewBounds = view.bounds;
     CGFloat xOffset = 8;
-    CGFloat yOffset = CGRectGetMinY(view.bounds) + kInterThemeSpacing;
+    CGFloat yOffset = CGRectGetMinY(view.bounds);
     NSMutableArray *themeViews = [NSMutableArray array];
     for (OUIPaletteTheme *theme in _themes) {
         {

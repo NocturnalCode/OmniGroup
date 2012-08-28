@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2007-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2005, 2007-2008, 2010, 2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -190,18 +190,15 @@ uint32_t OFLocalIPv4Address(void)
                 continue;
         }
 
-        CFArrayRef ipAddresses = NULL;
+        CFArrayRef ipAddresses;
         {
             CFStringRef ipv4Key = SCDynamicStoreKeyCreateNetworkInterfaceEntity(NULL, kSCDynamicStoreDomainState, (CFStringRef)interfaceName, kSCEntNetIPv4);
             CFDictionaryRef ipv4Dictionary = SCDynamicStoreCopyValue(store, ipv4Key);
-            if (ipv4Dictionary != NULL) {
-                ipAddresses = CFDictionaryGetValue(ipv4Dictionary, kSCPropNetIPv4Addresses);
-                if (ipAddresses)
-                    CFRetain(ipAddresses);
-                CFRelease(ipv4Dictionary);
-            }
-            if (ipv4Key)
-                CFRelease(ipv4Key);
+            ipAddresses = CFDictionaryGetValue(ipv4Dictionary, kSCPropNetIPv4Addresses);
+            if (ipAddresses)
+                CFRetain(ipAddresses);
+            CFRelease(ipv4Key);
+            CFRelease(ipv4Dictionary);
         }
 
         if (ipAddresses != NULL && CFArrayGetCount(ipAddresses) != 0) {
@@ -366,59 +363,20 @@ NSString *OFHostName(void)
 #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
     return @"localhost";
 #else
+    static NSString *cachedHostname = nil;
 
-#if !defined(TARGET_OS_IPHONE) || !TARGET_OS_IPHONE
-    NSString *hostname = nil;
-    SCDynamicStoreRef dynamicStore = SCDynamicStoreCreate(kCFAllocatorDefault, (CFStringRef)OMNI_BUNDLE_IDENTIFIER, NULL, NULL);
-    CFStringRef hostnameKey = SCDynamicStoreKeyCreateHostNames(kCFAllocatorDefault);
-    
-    if (dynamicStore && hostnameKey) {
-        CFPropertyListRef value = SCDynamicStoreCopyValue(dynamicStore, hostnameKey);
-        if (value) {
-            OBASSERT(CFGetTypeID(value) == CFDictionaryGetTypeID());
-            if (CFGetTypeID(value) == CFDictionaryGetTypeID()) {
-                NSDictionary *dictionary = (NSDictionary *)value;
-                hostname = [[[dictionary objectForKey:@"HostName"] copy] autorelease];
-                if (!hostname) {
-                    hostname = [dictionary objectForKey:@"LocalHostName"];
-                    if (hostname) {
-                        OBASSERT(![hostname hasSuffix:@".local"]);
-                        hostname = [NSString stringWithFormat:@"%@.local", hostname];
-                    }
-                }
-            }       
-        
-            CFRelease(value);
+    if (cachedHostname == nil) {
+        char hostnameBuffer[MAXHOSTNAMELEN + 1];
+        if (gethostname(hostnameBuffer, MAXHOSTNAMELEN) == 0) {
+            hostnameBuffer[MAXHOSTNAMELEN] = '\0'; // Ensure that the C string is NUL terminated
+            cachedHostname = [[NSString alloc] initWithCString:hostnameBuffer encoding:NSASCIIStringEncoding];
+        } else {
+            cachedHostname = @"localhost";
         }
     }
-    
-    if (dynamicStore) CFRelease(dynamicStore);
-    if (hostnameKey) CFRelease(hostnameKey);
 
-    return hostname ? hostname : @"localhost";
-#else
-    NSString *hostname = nil;
-    char hostnameBuffer[MAXHOSTNAMELEN + 1];
-    if (gethostname(hostnameBuffer, MAXHOSTNAMELEN) == 0) {
-        hostnameBuffer[MAXHOSTNAMELEN] = '\0'; // Ensure that the C string is NUL terminated
-        hostname = [[NSString alloc] initWithCString:hostnameBuffer encoding:NSASCIIStringEncoding];
-    } else {
-        hostname = @"localhost";
-    }
-
-    return hostname;
+    return cachedHostname;
 #endif
-#endif
-}
-
-NSString *OFLocalHostName(void)
-{
-#if !defined(TARGET_OS_IPHONE) || !TARGET_OS_IPHONE
-    CFStringRef localHostName = SCDynamicStoreCopyLocalHostName(NULL);
-    return [(id)CFMakeCollectable(localHostName) autorelease];
-#else
-    return 
-#endif    
 }
 
 static inline char _toHex(unsigned int i)

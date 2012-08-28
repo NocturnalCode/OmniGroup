@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2007-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2005, 2007-2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -12,7 +12,7 @@
 #import <OmniBase/OmniBase.h>
 #import <OmniFoundation/OmniFoundation.h>
 #import <pthread.h>
-#import <QuartzCore/CIContext.h>
+#import <QuartzCore/QuartzCore.h>
 
 #import "OAImageManager.h"
 #import "OAVersion.h"
@@ -41,6 +41,7 @@ static id (*original_setSize)(id self, SEL _cmd, NSSize size);
 
 - (id)replacement_initWithContentsOfFile:(NSString *)fileName;
 {
+    OBPRECONDITION(fileName != nil);
     self = original_initWithContentsOfFile(self, _cmd, fileName);
 
     if (self == nil) {

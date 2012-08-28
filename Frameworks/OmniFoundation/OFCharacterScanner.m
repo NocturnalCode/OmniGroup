@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2007-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2005, 2007-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -839,12 +839,12 @@ readFullTokenWithDelimiterCharacter(OFCharacterScanner *self, unichar delimiterC
 
     debugDictionary = [super debugDictionary];
 
-    if (inputBuffer) {
-        [debugDictionary setObject:[NSString stringWithCharacters:inputBuffer length:scanEnd - inputBuffer] forKey:@"inputString"];
-        [debugDictionary setObject:[NSString stringWithFormat:@"%td", scanEnd - inputBuffer] forKey:@"inputStringLength"];
-        [debugDictionary setObject:[NSString stringWithFormat:@"%td", scanLocation - inputBuffer] forKey:@"inputScanLocation"];
-    }
-    [debugDictionary setObject:[NSString stringWithFormat:@"%lu", inputStringPosition] forKey:@"inputStringPosition"];
+    //   if (inputBuffer) {
+//        [debugDictionary setObject:[NSString stringWithCharacters:inputBuffer length:scanEnd - inputBuffer] forKey:@"inputString"];
+//        [debugDictionary setObject:[NSString stringWithFormat:@"%ld", (NSIn)scanEnd - inputBuffer] forKey:@"inputStringLength"];
+//        [debugDictionary setObject:[NSString stringWithFormat:@"%ld", scanLocation - inputBuffer] forKey:@"inputScanLocation"];
+//    }
+//    [debugDictionary setObject:[NSString stringWithFormat:@"%ld", inputStringPosition] forKey:@"inputStringPosition"];
 
     return debugDictionary;
 }

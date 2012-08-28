@@ -1,4 +1,4 @@
-// Copyright 1997-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2008, 2010-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -57,6 +57,12 @@ RCS_ID("$Id$")
 - (BOOL)directoryExistsAtPath:(NSString *)path;
 {
     return [self directoryExistsAtPath:path traverseLink:NO];
+}
+
+- (BOOL)createPath:(NSString *)path attributes:(NSDictionary *)attributes error:(NSError **)outError;
+// Creates any directories needed to be able to create a file at the specified path.  Raises an exception on failure.
+{
+    return [self createDirectoryAtPath:path withIntermediateDirectories:YES attributes:attributes error:outError];
 }
 
 - (BOOL)createPathToFile:(NSString *)path attributes:(NSDictionary *)attributes error:(NSError **)outError;
@@ -178,9 +184,6 @@ static void _appendPropertiesOfTreeAtURL(NSFileManager *self, NSMutableString *s
         NSLog(@"Unable to get attributes of %@: %@", [url absoluteString], [error toPropertyList]);
         return;
     }
-    
-    OBASSERT(sizeof(ino_t) == sizeof(unsigned long long));
-    [str appendFormat:@"%llu  ", [[attributes objectForKey:NSFileSystemFileNumber] unsignedLongLongValue]];
     
     BOOL isDirectory = NO;
     NSString *fileType = [attributes fileType];

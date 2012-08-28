@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2010-2012 Omni Development, Inc.  All rights reserved.
+// Copyright 1997-2005, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -11,7 +11,6 @@
 #import <Foundation/Foundation.h>
 #import <AppKit/AppKit.h>
 #import <OmniBase/OmniBase.h>
-#import <OmniBase/macros.h>
 #import <OmniFoundation/OmniFoundation.h>
 
 #import <OmniAppKit/NSString-OAExtensions.h>
@@ -136,7 +135,7 @@ static NSFont *labelFont = nil;
 	    if (thumbnailsAreNumbered) {
                 rect = NSMakeRect(x, point.y + LABEL_PADDING + LABEL_OVERLAP_WITH_BOTTOM_PADDING - 3, cellSize.width, LABEL_FONT_SIZE);
 
-		[[NSString stringWithFormat:@"%lu", thumbnailIndex + 1] drawWithFont:labelFont color:(isSelected ? [NSColor selectedControlTextColor] : [NSColor controlTextColor]) alignment:NSCenterTextAlignment rectangle:rect];
+		[[NSString stringWithFormat:@"%d", thumbnailIndex + 1] drawWithFont:labelFont color:(isSelected ? [NSColor selectedControlTextColor] : [NSColor controlTextColor]) alignment:NSCenterTextAlignment rectangle:rect];
 	    }
 	
             NSImage *image = [provider thumbnailImageAtIndex:thumbnailIndex];
@@ -265,7 +264,7 @@ static NSFont *labelFont = nil;
     NSPoint mousePoint = [self convertPoint:[event locationInWindow] fromView:nil];
     NSUInteger row = MAX(0, mousePoint.y / cellSize.height);
     NSUInteger column = (mousePoint.x - horizontalMargin/2) / (horizontalMargin + cellSize.width);
-    column = CLAMP(column, 0, columnCount-1);
+    column = MIN(MAX(0U, column), columnCount-1);
     
     NSUInteger thumbnailIndex = row * columnCount + column;
     if (thumbnailIndex >= [provider thumbnailCount])

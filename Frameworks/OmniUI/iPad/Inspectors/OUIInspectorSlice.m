@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -11,10 +11,7 @@
 #import <OmniUI/OUIInspectorPane.h>
 #import <OmniUI/OUIStackedSlicesInspectorPane.h>
 #import <OmniUI/UIView-OUIExtensions.h>
-
 #import "OUICustomSubclass.h"
-#import "OUIInspectorSlice-Internal.h"
-#import "OUIParameters.h"
 
 RCS_ID("$Id$");
 
@@ -29,11 +26,6 @@ OBDEPRECATED_METHOD(-updateInterfaceFromInspectedObjects); // -> -updateInterfac
     
     // We add -init below for caller's convenience, but subclasses should not subclass that; they should subclass the designated initializer.
     OBASSERT(OBClassImplementingMethod(self, @selector(init)) == [OUIInspectorSlice class]);
-}
-
-+ (instancetype)slice;
-{
-    return [[[self alloc] init] autorelease];
 }
 
 + (NSString *)nibName;
@@ -124,27 +116,13 @@ static CGFloat _borderOffsetFromEdge(UIView *view, CGRectEdge fromEdge)
 - (CGFloat)paddingToPreviousSlice:(OUIInspectorSlice *)previousSlice remainingHeight:(CGFloat)remainingHeight;
 {
     OBPRECONDITION(previousSlice);
-    CGFloat result = 14 - _borderOffsetFromEdge(self.view, CGRectMinYEdge) - _borderOffsetFromEdge(previousSlice.view, CGRectMaxYEdge);
-    
-    OBASSERT(result >= -14.0); // if the combined border of the views is too large, we can end up overlapping content and causing badness
-    return result;    
+    return 14 - _borderOffsetFromEdge(self.view, CGRectMinYEdge) - _borderOffsetFromEdge(previousSlice.view, CGRectMaxYEdge);
 }
 
 - (CGFloat)paddingToInspectorSides;
 {
     // The goal is to match the inset of grouped table view cells (for cases where we have controls next to one), though individual inspectors may need to adjust this.
     return 9 - _borderOffsetFromEdge(self.view, CGRectMinXEdge); // Assumes the left/right border offsets are the same, which they usually are with shadows being done vertically.
-}
-
-// Called on both height-resizable and non-resizable slices. Subclasses must implement this to be height sizeable. The default implementation is to just return the current view height (assuming a fixed height view). For backwards compatibility, if the view *is* height sizeable, we use kOUIInspectorWellHeight.
-- (CGFloat)minimumHeightForWidth:(CGFloat)width;
-{
-    // Shouldn't be called unless we have a height sizeable view.
-    OBPRECONDITION([self isViewLoaded]);
-    
-    if (self.view.autoresizingMask & UIViewAutoresizingFlexibleHeight)
-        return kOUIInspectorWellHeight;
-    return CGRectGetHeight(self.view.bounds);
 }
 
 - (void)sizeChanged;

@@ -1,4 +1,4 @@
-// Copyright 2001-2005, 2007-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2001-2005, 2007-2008, 2010-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -728,10 +728,6 @@ BOOL OFBTreeDelete(OFBTree *btree, void *value)
         cursor.nodeStack[++cursor.nodeStackDepth] = _OFBTreeValueLesserChildNode(btree, value);
         replacement = _OFBTreeSelectLast(btree, &cursor);
         
-        OBASSERT_NOTNULL(replacement);
-        if (replacement == NULL)
-            return NO;
-        
         // Replace original with greatest lesser value
         memcpy(value, replacement, btree->elementSize);
         
@@ -1070,7 +1066,7 @@ NSString *OFBTreeDescribeCursor(const OFBTree *tree, const OFBTreeCursor *cursor
         [buf appendFormat:@"%d:%p", i, node];
         const OFBTreeChildPointer shouldBe = ( i == 0 ? tree->root : _OFBTreeValueLesserChildNode(tree, cursor->selectionStack[i-1]) );
         if  (cursor->nodeStack[i].node != shouldBe.node) {
-            [buf appendFormat:@"<should be %p>", shouldBe.node];
+            //[buf appendFormat:@"<should be %p>",shouldBe];
         }
         
         unsigned int j;

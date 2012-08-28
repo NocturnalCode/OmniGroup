@@ -1,4 +1,4 @@
-// Copyright 1998-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1998-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -38,7 +38,7 @@ NSString *OFCopySymbolicBacktrace(void)
 
 NSString *OFCopySymbolicBacktraceForNumericBacktrace(NSString *numericTrace)
 {
-#if 1
+#if 0
     // #include <execinfo.h>
     // #include <stdio.h>
     NSArray *stackStrings = [numericTrace componentsSeparatedByString:@"  "];
@@ -52,7 +52,7 @@ NSString *OFCopySymbolicBacktraceForNumericBacktrace(NSString *numericTrace)
     unsigned int frameIndex;
     NSMutableString *symbolicBacktrace = [[NSMutableString alloc] init];
     for (frameIndex = 0; frameIndex < frameCount; frameIndex++) {
-        [symbolicBacktrace appendFormat:@"%p -- %s\n", callstack[frameIndex], symbols[frameIndex]];
+        [symbolicBacktrace appendFormat:@"%08u -- %s\n", callstack[frameIndex], symbols[frameIndex]];
 #ifdef DEBUG
         printf("%s\n", symbols[frameIndex]);
 #endif
@@ -70,12 +70,12 @@ NSString *OFCopySymbolicBacktraceForNumericBacktrace(NSString *numericTrace)
     NSString *outputString;
     @try {
         NSError *error = nil;
-        NSData *inputData = [numericTrace dataUsingEncoding:NSUTF8StringEncoding];
-        NSData *outputData = [inputData filterDataThroughCommandAtPath:atosPath
+        //NSData *inputData = [numericTrace dataUsingEncoding:NSUTF8StringEncoding];
+        NSData *outputData = nil;/*[inputData filterDataThroughCommandAtPath:atosPath
                                                          withArguments:[NSArray arrayWithObjects:@"-p", [NSString stringWithFormat:@"%u", getpid()], nil]
                                                  includeErrorsInOutput:YES
                                                            errorStream:nil
-                                                                 error:&error];
+                                                                 error:&error];*/
         
         if (!outputData) {
             outputString = [[error description] copy]; // for now, just return something for the result

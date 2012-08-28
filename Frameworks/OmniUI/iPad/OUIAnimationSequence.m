@@ -19,7 +19,6 @@ RCS_ID("$Id$");
 #endif
 
 const NSTimeInterval OUIAnimationSequenceDefaultDuration = 0.2;
-const NSTimeInterval OUIAnimationSequenceImmediateDuration = 0.0;
 
 @implementation OUIAnimationSequence
 
@@ -62,7 +61,7 @@ const NSTimeInterval OUIAnimationSequenceImmediateDuration = 0.0;
     void (^oneAction)(void) = (typeof(oneAction))obj;
     
     // We used to interpret a zero duration as meaing a default of 0.2, but now we treat it as meaning we should run that block w/o animation enabled.
-    if (_duration == OUIAnimationSequenceImmediateDuration) {
+    if (_duration == 0) {
         OUIWithoutAnimating(oneAction);
         [self _runNextStep];
     } else {

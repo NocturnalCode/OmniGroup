@@ -1,4 +1,4 @@
-// Copyright 2004-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2004-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -7,11 +7,8 @@
 
 #import <OmniFoundation/OFBinding.h>
 
-#import <OmniFoundation/NSKeyValueObserving-OFExtensions.h> // For HAS_REMOVEOBSERVER_FORKEYPATH_CONTEXT
-#import <OmniFoundation/OFBindingPoint.h>
 #import <OmniFoundation/OFNull.h> // For OFISEQUAL()
 #import <OmniBase/OBObject.h>
-#import <OmniBase/macros.h>
 
 //#define DEBUG_KVO 1
 
@@ -20,7 +17,11 @@ RCS_ID("$Id$");
 OBDEPRECATED_METHOD(-humanReadableDescriptionForKey:); // Use the key path variant
 OBDEPRECATED_METHOD(-shortHumanReadableDescriptionForKey:);
 
-static unsigned int _OFBindingObservationContext; 
+BOOL OFBindingPointsEqual(OFBindingPoint a, OFBindingPoint b)
+{
+    // Requires identical objects, not -isEqual:!
+    return a.object == b.object && [a.keyPath isEqualToString:b.keyPath];
+}
 
 @interface OFBinding (Private)
 - (void)_register;
@@ -60,7 +61,7 @@ static unsigned int _OFBindingObservationContext;
     return self;
 }
 
-- initWithSourcePoint:(OFBindingPoint *)sourcePoint destinationPoint:(OFBindingPoint *)destinationPoint;
+- initWithSourcePoint:(OFBindingPoint)sourcePoint destinationPoint:(OFBindingPoint)destinationPoint;
 {
     return [self initWithSourceObject:sourcePoint.object sourceKeyPath:sourcePoint.keyPath destinationObject:destinationPoint.object destinationKeyPath:destinationPoint.keyPath];
 }
@@ -130,7 +131,7 @@ static unsigned int _OFBindingObservationContext;
     [_sourceObject reset];
 }
 
-- (OFBindingPoint *)sourcePoint;
+- (OFBindingPoint)sourcePoint;
 {
     return OFBindingPointMake(_sourceObject, _sourceKeyPath);
 }
@@ -145,7 +146,7 @@ static unsigned int _OFBindingObservationContext;
     return _sourceKeyPath;
 }
 
-- (OFBindingPoint *)destinationPoint;
+- (OFBindingPoint)destinationPoint;
 {
     return OFBindingPointMake(_nonretained_destinationObject, _destinationKeyPath);
 }
@@ -196,11 +197,7 @@ static unsigned int _OFBindingObservationContext;
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context;
 {
-    if (context == &_OFBindingObservationContext) {
-        OBRequestConcreteImplementation(self, _cmd);
-    } else {
-        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
-    }
+    OBRequestConcreteImplementation(self, _cmd);
 }
 
 #pragma mark -
@@ -240,7 +237,7 @@ static unsigned int _OFBindingObservationContext;
     
     
     NSKeyValueObservingOptions options = [self _options];
-    [_sourceObject addObserver:self forKeyPath:_sourceKeyPath options:options context:&_OFBindingObservationContext];
+    [_sourceObject addObserver:self forKeyPath:_sourceKeyPath options:options context:NULL];
     
     _registered = YES;
 #if DEBUG_KVO
@@ -254,11 +251,7 @@ static unsigned int _OFBindingObservationContext;
     if (!_registered) // don't null-deregister if there is a programming error
 	return;
 
-#if HAS_REMOVEOBSERVER_FORKEYPATH_CONTEXT
-    [_sourceObject removeObserver:self forKeyPath:_sourceKeyPath context:&_OFBindingObservationContext];
-#else
     [_sourceObject removeObserver:self forKeyPath:_sourceKeyPath];
-#endif
     _registered = NO;
 
 #if DEBUG_KVO
@@ -289,30 +282,26 @@ static void _handleSetValue(id sourceObject, NSString *sourceKeyPath, id destina
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context;
 {
-    if (context == &_OFBindingObservationContext) {
-        OBPRECONDITION([keyPath isEqualToString:_sourceKeyPath]);
-        OBPRECONDITION(object == _sourceObject);
-        
+    OBPRECONDITION([keyPath isEqualToString:_sourceKeyPath]);
+    OBPRECONDITION(object == _sourceObject);
+    
 #if DEBUG_KVO
-        //if (![_sourceObject isKindOfClass:[ODEventPlaybackEventSource class]] && ![_sourceObject isKindOfClass:[ODTimeParametricEventSource class]])
-        NSLog(@"binding %p observe %@.%@ -- propagating to %@.%@, change %@", self, [_sourceObject shortDescription], _sourceKeyPath, [_nonretained_destinationObject shortDescription], _destinationKeyPath, change);
+    //if (![_sourceObject isKindOfClass:[ODEventPlaybackEventSource class]] && ![_sourceObject isKindOfClass:[ODTimeParametricEventSource class]])
+    NSLog(@"binding %p observe %@.%@ -- propagating to %@.%@, change %@", self, [_sourceObject shortDescription], _sourceKeyPath, [_nonretained_destinationObject shortDescription], _destinationKeyPath, change);
 #endif
-        
-        // The destination may cause us to get freed when we notify it.  Our caller doesn't like it when we are dead when we return.
-        [[self retain] autorelease];
-        
-        NSNumber *kind = [change objectForKey:NSKeyValueChangeKindKey];
-        switch ((NSKeyValueChange)[kind intValue]) {
-            case NSKeyValueChangeSetting: {
-                _handleSetValue(_sourceObject, _sourceKeyPath, _nonretained_destinationObject, _destinationKeyPath, change);
-                break;
-            }
-            default: {
-                [NSException raise:NSInvalidArgumentException format:@"Don't know how to handle change %@", change];
-            }
-        }
-    } else {
-        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+    
+    // The destination may cause us to get freed when we notify it.  Our caller doesn't like it when we are dead when we return.
+    [[self retain] autorelease];
+    
+    NSNumber *kind = [change objectForKey:NSKeyValueChangeKindKey];
+    switch ((NSKeyValueChange)[kind intValue]) {
+	case NSKeyValueChangeSetting: {
+	    _handleSetValue(_sourceObject, _sourceKeyPath, _nonretained_destinationObject, _destinationKeyPath, change);
+	    break;
+	}
+	default: {
+	    [NSException raise:NSInvalidArgumentException format:@"Don't know how to handle change %@", change];
+	}
     }
 }
 
@@ -331,47 +320,43 @@ static void _handleSetValue(id sourceObject, NSString *sourceKeyPath, id destina
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context;
 {
-    if (context == &_OFBindingObservationContext) {
-        OBPRECONDITION([keyPath isEqualToString:_sourceKeyPath]);
-        OBPRECONDITION(object == _sourceObject);
-        
+    OBPRECONDITION([keyPath isEqualToString:_sourceKeyPath]);
+    OBPRECONDITION(object == _sourceObject);
+    
 #if DEBUG_KVO
-        //if (![_sourceObject isKindOfClass:[ODEventPlaybackEventSource class]] && ![_sourceObject isKindOfClass:[ODTimeParametricEventSource class]])
-        NSLog(@"binding %p observe %@.%@ -- propagating to %@.%@, change %@", self, [_sourceObject shortDescription], _sourceKey, [_nonretained_destinationObject shortDescription], _destinationKeyPath, change);
+    //if (![_sourceObject isKindOfClass:[ODEventPlaybackEventSource class]] && ![_sourceObject isKindOfClass:[ODTimeParametricEventSource class]])
+    NSLog(@"binding %p observe %@.%@ -- propagating to %@.%@, change %@", self, [_sourceObject shortDescription], _sourceKey, [_nonretained_destinationObject shortDescription], _destinationKeyPath, change);
 #endif
-        
-        // The destination may cause us to get freed when we notify it.  Our caller doesn't like it when we are dead when we return.
-        [[self retain] autorelease];
-        
-        NSNumber *kind = [change objectForKey:NSKeyValueChangeKindKey];
-        switch ((NSKeyValueChange)[kind intValue]) {
-            case NSKeyValueChangeSetting: {
-                _handleSetValue(_sourceObject, _sourceKeyPath, _nonretained_destinationObject, _destinationKeyPath, change);
-                break;
-            }
-            case NSKeyValueChangeInsertion: {
-                NSArray *inserted = [change objectForKey:NSKeyValueChangeNewKey];
-                NSIndexSet *indexes = [change objectForKey:NSKeyValueChangeIndexesKey];
-                OBASSERT(inserted);
-                OBASSERT(indexes);
-                OBASSERT([inserted count] == [indexes count]);
-                
-                [[_nonretained_destinationObject mutableArrayValueForKeyPath:_destinationKeyPath] insertObjects:inserted atIndexes:indexes];
-                break;
-            }
-            case NSKeyValueChangeRemoval: {
-                NSIndexSet *indexes = [change objectForKey:NSKeyValueChangeIndexesKey];
-                OBASSERT(indexes);
-                
-                [[_nonretained_destinationObject mutableArrayValueForKeyPath:_destinationKeyPath] removeObjectsAtIndexes:indexes];
-                break;
-            }
-            default: {
-                [NSException raise:NSInvalidArgumentException format:@"Don't know how to handle change %@", change];
-            }
-        }
-    } else {
-        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+    
+    // The destination may cause us to get freed when we notify it.  Our caller doesn't like it when we are dead when we return.
+    [[self retain] autorelease];
+    
+    NSNumber *kind = [change objectForKey:NSKeyValueChangeKindKey];
+    switch ((NSKeyValueChange)[kind intValue]) {
+	case NSKeyValueChangeSetting: {
+	    _handleSetValue(_sourceObject, _sourceKeyPath, _nonretained_destinationObject, _destinationKeyPath, change);
+	    break;
+	}
+	case NSKeyValueChangeInsertion: {
+	    NSArray *inserted = [change objectForKey:NSKeyValueChangeNewKey];
+	    NSIndexSet *indexes = [change objectForKey:NSKeyValueChangeIndexesKey];
+	    OBASSERT(inserted);
+	    OBASSERT(indexes);
+	    OBASSERT([inserted count] == [indexes count]);
+	    
+            [[_nonretained_destinationObject mutableArrayValueForKeyPath:_destinationKeyPath] insertObjects:inserted atIndexes:indexes];
+	    break;
+	}
+	case NSKeyValueChangeRemoval: {
+	    NSIndexSet *indexes = [change objectForKey:NSKeyValueChangeIndexesKey];
+	    OBASSERT(indexes);
+	    
+            [[_nonretained_destinationObject mutableArrayValueForKeyPath:_destinationKeyPath] removeObjectsAtIndexes:indexes];
+	    break;
+	}
+	default: {
+	    [NSException raise:NSInvalidArgumentException format:@"Don't know how to handle change %@", change];
+	}
     }
 }
 
@@ -393,62 +378,58 @@ static void _handleSetValue(id sourceObject, NSString *sourceKeyPath, id destina
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context;
 {
-    if (context == &_OFBindingObservationContext) {
-        OBPRECONDITION([keyPath isEqualToString:_sourceKeyPath]);
-        OBPRECONDITION(object == _sourceObject);
-        
+    OBPRECONDITION([keyPath isEqualToString:_sourceKeyPath]);
+    OBPRECONDITION(object == _sourceObject);
+    
 #if DEBUG_KVO
-        //if (![_sourceObject isKindOfClass:[ODEventPlaybackEventSource class]] && ![_sourceObject isKindOfClass:[ODTimeParametricEventSource class]])
-        NSLog(@"binding %p observe %@.%@ -- propagating to %@.%@, change %@", self, [_sourceObject shortDescription], _sourceKey, [_nonretained_destinationObject shortDescription], _destinationKeyPath, change);
+    //if (![_sourceObject isKindOfClass:[ODEventPlaybackEventSource class]] && ![_sourceObject isKindOfClass:[ODTimeParametricEventSource class]])
+    NSLog(@"binding %p observe %@.%@ -- propagating to %@.%@, change %@", self, [_sourceObject shortDescription], _sourceKey, [_nonretained_destinationObject shortDescription], _destinationKeyPath, change);
 #endif
-        
-        // The destination may cause us to get freed when we notify it.  Our caller doesn't like it when we are dead when we return.
-        [[self retain] autorelease];
-        
-        NSNumber *kind = [change objectForKey:NSKeyValueChangeKindKey];
-        switch ((NSKeyValueChange)[kind intValue]) {
-            case NSKeyValueChangeSetting: {
-                _handleSetValue(_sourceObject, _sourceKeyPath, _nonretained_destinationObject, _destinationKeyPath, change);
-                break;
-            }
-            case NSKeyValueChangeInsertion: {
-                NSSet *inserted = [change objectForKey:NSKeyValueChangeNewKey];
-                OBASSERT(inserted);
-                OBASSERT([inserted count] > 0);
-                
-                [[_nonretained_destinationObject mutableSetValueForKeyPath:_destinationKeyPath] unionSet:inserted];
-                break;
-            }
-            case NSKeyValueChangeRemoval: {
-                NSSet *removed = [change objectForKey:NSKeyValueChangeOldKey];
-                OBASSERT(removed);
-                OBASSERT([removed count] > 0);
-                
-                [[_nonretained_destinationObject mutableSetValueForKeyPath:_destinationKeyPath] minusSet:removed];
-                break;
-            }
-            case NSKeyValueChangeReplacement: {
-                // See test case at <svn+ssh://source.omnigroup.com/Source/svn/Omni/trunk/Staff/bungi/Radar/SetSetBindingTest>.
-                // The meaning of this enum isn't totally clear from the documentation.  Empirically this test shows that this change means to remove the old set and add the new; doing a subset replacement, but the documenation is vague enough that in the past I've had differing interpretations.
-                NSSet *removed = [change objectForKey:NSKeyValueChangeOldKey];
-                NSSet *inserted = [change objectForKey:NSKeyValueChangeNewKey];
-                
-                OBASSERT(![removed intersectsSet:inserted]); // If these intersect, then we'll publish a remove of some objects followed by an add; better for the object to not be in the sets at all.
-                
-                NSMutableSet *proxy = [_nonretained_destinationObject mutableSetValueForKeyPath:_destinationKeyPath];
-                if ([removed count] > 0)
-                    [proxy minusSet:removed];
-                if ([inserted count] > 0)
-                    [proxy unionSet:inserted];
-                break;
-            }
-                
-            default: {
-                [NSException raise:NSInvalidArgumentException format:@"Don't know how to handle change %@", change];
-            }
+    
+    // The destination may cause us to get freed when we notify it.  Our caller doesn't like it when we are dead when we return.
+    [[self retain] autorelease];
+    
+    NSNumber *kind = [change objectForKey:NSKeyValueChangeKindKey];
+    switch ((NSKeyValueChange)[kind intValue]) {
+	case NSKeyValueChangeSetting: {
+	    _handleSetValue(_sourceObject, _sourceKeyPath, _nonretained_destinationObject, _destinationKeyPath, change);
+	    break;
+	}
+	case NSKeyValueChangeInsertion: {
+	    NSSet *inserted = [change objectForKey:NSKeyValueChangeNewKey];
+	    OBASSERT(inserted);
+	    OBASSERT([inserted count] > 0);
+	    
+	    [[_nonretained_destinationObject mutableSetValueForKeyPath:_destinationKeyPath] unionSet:inserted];
+	    break;
+	}
+	case NSKeyValueChangeRemoval: {
+	    NSSet *removed = [change objectForKey:NSKeyValueChangeOldKey];
+	    OBASSERT(removed);
+	    OBASSERT([removed count] > 0);
+	    
+	    [[_nonretained_destinationObject mutableSetValueForKeyPath:_destinationKeyPath] minusSet:removed];
+	    break;
+	}
+        case NSKeyValueChangeReplacement: {
+            // See test case at <svn+ssh://source.omnigroup.com/Source/svn/Omni/trunk/Staff/bungi/Radar/SetSetBindingTest>.
+            // The meaning of this enum isn't totally clear from the documentation.  Empirically this test shows that this change means to remove the old set and add the new; doing a subset replacement, but the documenation is vague enough that in the past I've had differing interpretations.
+	    NSSet *removed = [change objectForKey:NSKeyValueChangeOldKey];
+	    NSSet *inserted = [change objectForKey:NSKeyValueChangeNewKey];
+
+            OBASSERT(![removed intersectsSet:inserted]); // If these intersect, then we'll publish a remove of some objects followed by an add; better for the object to not be in the sets at all.
+            
+            NSMutableSet *proxy = [_nonretained_destinationObject mutableSetValueForKeyPath:_destinationKeyPath];
+            if ([removed count] > 0)
+                [proxy minusSet:removed];
+            if ([inserted count] > 0)
+                [proxy unionSet:inserted];
+            break;
         }
-    } else {
-        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+
+	default: {
+	    [NSException raise:NSInvalidArgumentException format:@"Don't know how to handle change %@", change];
+	}
     }
 }
 

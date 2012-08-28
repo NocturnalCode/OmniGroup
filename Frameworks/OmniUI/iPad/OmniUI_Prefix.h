@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -15,6 +15,8 @@
 #import <OmniFoundation/OFNull.h>
 #import <OmniFoundation/NSString-OFSimpleMatching.h>
 #import <OmniFoundation/NSArray-OFExtensions.h>
+
+#import "OUIShared_Prefix.h"
 
 typedef struct {
     NSInteger value;
@@ -37,23 +39,16 @@ static inline void main_sync(void (^block)(void)) {
         dispatch_sync(dispatch_get_main_queue(), block);
 }
 
+
 #if 0 && defined(DEBUG)
-    #define DEBUG_PREVIEW_DISPLAY(format, ...) NSLog(@"PREVIEW: " format, ## __VA_ARGS__)
+    #define PREVIEW_DEBUG(format, ...) NSLog(@"PREVIEW: " format, ## __VA_ARGS__)
 #else
-    #define DEBUG_PREVIEW_DISPLAY(format, ...)
+    #define PREVIEW_DEBUG(format, ...)
 #endif
 
 #if 0 && defined(DEBUG)
-    #define DEBUG_PREVIEW_GENERATION(format, ...) NSLog(@"PREVIEW: " format, ## __VA_ARGS__)
-#else
-    #define DEBUG_PREVIEW_GENERATION(format, ...)
-#endif
-
-#if 0 && defined(DEBUG)
-    #define DEBUG_DOCUMENT_DEFINED 1
     #define DEBUG_DOCUMENT(format, ...) NSLog(@"DOCUMENT: " format, ## __VA_ARGS__)
 #else
-    #define DEBUG_DOCUMENT_DEFINED 0
     #define DEBUG_DOCUMENT(format, ...)
 #endif
 

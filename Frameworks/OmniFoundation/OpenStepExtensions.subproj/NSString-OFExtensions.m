@@ -1,4 +1,4 @@
-// Copyright 1997-2008, 2010-2012 Omni Development, Inc.  All rights reserved.
+// Copyright 1997-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -90,31 +90,30 @@ static NSCharacterSet *nonAtomCharsExceptLWSP = nil;
     if (encodingName != nil && ![encodingName hasPrefix:@"x-"])
         return [@"iana " stringByAppendingString:encodingName];
 
-    return [NSString stringWithFormat:@"cf %"@PRI_CFStringEncoding, anEncoding];
+    return [NSString stringWithFormat:@"cf %d", anEncoding];
 }
 
 + (NSString *)abbreviatedStringForBytes:(unsigned long long)bytes;
 {
-    double valueLimit = 999.95; // Above this value we switch to bigger units
-    double kilo = 1000.0; // Switched from kiB to kB for <bug:///80383> (Switch to base 1000 now that finder uses it rather than base 1024)
+    double kb, mb, gb, tb, pb;
     
     // We can't use [self bundle] or [NSString bundle], since that would try to load from Foundation, where NSString is defined. So we use [OFObject bundle]. If this file is ever moved to a bundle other than the one containing OFObject, that will have to be changed.
     
-    if (bytes < valueLimit)
+    if (bytes < 1000)
         return [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"%d bytes", @"OmniFoundation", [OFObject bundle], @"abbreviated string for bytes format"), (int)bytes];
-    double kb = bytes / kilo;
-    if (kb < valueLimit)
+    kb = bytes / 1024.0;
+    if (kb < 1000.0)
         return [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"%0.1f kB", @"OmniFoundation", [OFObject bundle], @"abbreviated string for bytes format"), kb];
-    double mb = kb / kilo;
-    if (mb < valueLimit)
+    mb = kb / 1024.0;
+    if (mb < 1000.0)
         return [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"%0.1f MB", @"OmniFoundation", [OFObject bundle], @"abbreviated string for bytes format"), mb];
-    double gb = mb / kilo;
-    if (gb < valueLimit)
+    gb = mb / 1024.0;
+    if (gb < 1000.0)
         return [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"%0.1f GB", @"OmniFoundation", [OFObject bundle], @"abbreviated string for bytes format"), gb];
-    double tb = gb / kilo;
-    if (tb < valueLimit)
+    tb = gb / 1024.0;
+    if (tb < 1000.0)
         return [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"%0.1f TB", @"OmniFoundation", [OFObject bundle], @"abbreviated string for bytes format"), tb];
-    double pb = tb / kilo;
+    pb = tb / 1024.0;
     return [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"%0.1f PB", @"OmniFoundation", [OFObject bundle], @"abbreviated string for bytes format"), pb];
 }
 
@@ -312,7 +311,7 @@ static NSCharacterSet *nonAtomCharsExceptLWSP = nil;
         else if ([numberOFCharacterSet characterIsMember:peekedChar])
             currentOFCharacterSet = numberOFCharacterSet;
         else {
-            [NSException raise:NSInvalidArgumentException format:@"Character: %@, at index: %lu, not found in lowercase, uppercase, or decimal digit character sets", [NSString stringWithCharacter:peekedChar], scannerScanLocation(scanner)];
+            [NSException raise:NSInvalidArgumentException format:@"Character: , at index: , not found in lowercase, uppercase, or decimal digit character sets"/*, [NSString stringWithCharacter:peekedChar], scannerScanLocation*/];
         }
 
         if (scannerScanUpToCharacterNotInOFCharacterSet(scanner, currentOFCharacterSet)) {
@@ -384,31 +383,6 @@ static NSCharacterSet *nonAtomCharsExceptLWSP = nil;
     if (match == nil)
        return self;
     return [[self stringByRemovingString:[match matchString]] stringByRemovingRegularExpression:regularExpression];
-}
-
-- (NSString *)stringByNormalizingWithOptions:(NSUInteger)options locale:(NSLocale *)locale;
-{
-    NSMutableString *mutableString = [[self mutableCopy] autorelease];
-    
-    if (!locale)
-        locale = [NSLocale currentLocale];
-
-    if ((options & OFStringNormlizationOptionLowercase) != 0)
-        CFStringLowercase((CFMutableStringRef)mutableString, (CFLocaleRef)locale);
-
-    if ((options & OFStringNormlizationOptionUppercase) != 0)
-        CFStringUppercase((CFMutableStringRef)mutableString, (CFLocaleRef)locale);
-    
-    if ((options & OFStringNormilzationOptionStripCombiningMarks) != 0)
-        CFStringTransform((CFMutableStringRef)mutableString, NULL, kCFStringTransformStripCombiningMarks, NO);
-        
-    if ((options & OFStringNormilzationOptionStripPunctuation) != 0) 
-        [mutableString replaceAllOccurrencesOfCharactersInSet:[NSCharacterSet punctuationCharacterSet] withString:@""];
-
-    if (![self isEqualToString:mutableString])
-        return mutableString;
-        
-    return self;
 }
 
 - (NSString *)stringByPaddingToLength:(NSUInteger)aLength;
@@ -532,7 +506,7 @@ static NSCharacterSet *nonAtomCharsExceptLWSP = nil;
             [resultString appendString:[self substringWithRange:beforeMatchRange]];
 
         if (occurranceIndex >= sourceCount) {
-            [NSException raise:NSInvalidArgumentException format:@"The string being scanned has more occurrances of the target string than the source array has items (scannedString = %@, targetString = %@, sourceArray = %@).", self, targetString, sourceArray];
+            [NSException raise:NSInvalidArgumentException format:@"The string being scanned has more occurrances of the target string than the source array has items."];
         }
         
         NSString *itemDescription = [[sourceArray objectAtIndex:occurranceIndex] description];
@@ -557,7 +531,7 @@ static NSCharacterSet *nonAtomCharsExceptLWSP = nil;
         return [[self retain] autorelease];
 
     if (!substringLength)
-        [NSException raise:NSInvalidArgumentException format:@"-[%@ %@], substringLength must be non-zero.", NSStringFromClass([self class]), NSStringFromSelector(_cmd)];
+        [NSException raise:NSInvalidArgumentException format:@"substringLength must be non-zero."/*, NSStringFromClass([self class]), NSStringFromSelector(_cmd), substringLength*/];
     
     NSUInteger offset = 0;
     NSMutableString *result = [NSMutableString string];

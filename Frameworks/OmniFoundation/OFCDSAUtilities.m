@@ -1,26 +1,21 @@
-// Copyright 2005, 2007, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2005, 2007, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
 // distributed with this project and can also be found at
 // <http://www.omnigroup.com/developer/sourcecode/sourcelicense/>.
 
-#define OF_ENABLE_CDSA 1
-#pragma clang diagnostic ignored "-Wdeprecated-declarations" // TODO: Avoid using deprecated CSSM API
-
-#import <OmniFoundation/OFCDSAUtilities.h>
+#import "OFCDSAUtilities.h"
 
 #import <Foundation/Foundation.h>
 #import <OmniBase/OmniBase.h>
-#import <OmniFoundation/NSMutableDictionary-OFExtensions.h>
+#import "NSMutableDictionary-OFExtensions.h"
 #import <Security/Security.h>
 
 
 RCS_ID("$Id$");
 
 #pragma mark Utility functions
-
-#if OF_ENABLE_CDSA
 
 static const struct {
     int moduleBase;
@@ -37,6 +32,7 @@ static const struct {
     { 0, nil }
 };
 
+#if OF_ENABLE_CDSA
 /* The original motivation for OFStringFromCSSMReturn() was that we had to weak-link both cssmErrorString() (for 10.4) and SecCopyErrorMessageString() (for later OS revisions), but nw it's mostly a cover on SecCopyErrorMessageString(). However, it's still handy to have a guaranteed non-nil result that's at least minimally informative. */
 NSString *OFStringFromCSSMReturn(CSSM_RETURN code)
 {
@@ -69,9 +65,6 @@ NSString *OFStringFromCSSMReturn(CSSM_RETURN code)
     return [NSString stringWithFormat:@"%@ (%d)", errorString, code];
 }
 
-NSString * const OFCDSAErrorDomain = @"com.omnigroup.OmniFoundation.CDSA";
-#define OFCDSAErrorDomain ( @"com.omnigroup.OmniFoundation.CDSA" )  // Same
-
 BOOL OFErrorFromCSSMReturn(NSError **outError, CSSM_RETURN errcode, NSString *function)
 {
     if (outError) {
@@ -79,7 +72,7 @@ BOOL OFErrorFromCSSMReturn(NSError **outError, CSSM_RETURN errcode, NSString *fu
         if (function)
             descr = [NSString stringWithStrings:descr, @" in ", function, nil];
         
-        *outError = [NSError errorWithDomain:OFCDSAErrorDomain code:errcode userInfo:[NSDictionary dictionaryWithObject:descr forKey:NSLocalizedDescriptionKey]];
+        *outError = [NSError errorWithDomain:@"com.omnigroup.OmniFoundation.CDSA" code:errcode userInfo:[NSDictionary dictionaryWithObject:descr forKey:NSLocalizedDescriptionKey]];
     }
     return NO; // Useless, but makes clang-analyze happy
 }
@@ -90,11 +83,11 @@ static inline NSString *NSStringFromCSSMGUID(CSSM_GUID uid)
     const uint8 *data1overlay = (void *)&(uid.Data1);
     const uint8 *data2overlay = (void *)&(uid.Data2);
     const uint8 *data3overlay = (void *)&(uid.Data3);
-    return [NSString stringWithFormat:@"{%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
+    return [NSString stringWithFormat:@"{%02x%02x%02x%02x-%02x%02x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x}",
             data1overlay[0], data1overlay[1], data1overlay[2], data1overlay[3],
-            data2overlay[0], data2overlay[1], data3overlay[0], data3overlay[1],
+            data2overlay[0], data2overlay[1], data3overlay[2], data3overlay[3],
             uid.Data4[0], uid.Data4[1], uid.Data4[2], uid.Data4[3], 
-            uid.Data4[4], uid.Data4[5], uid.Data4[6], uid.Data4[7]];
+            uid.Data4[4], uid.Data4[5], uid.Data4[6]];
 }
 #endif
 
@@ -321,11 +314,11 @@ static const CSSM_VERSION callingApiVersion = {2,0};
     const CSSM_KEY *kcKeyBuffer = NULL;
     OSStatus err = SecKeyGetCSSMKey(keyRef, &kcKeyBuffer);
     if (err != noErr) {
-        NSLog(@"-[%@ %@]: SecKeyGetCSSMKey() returns %d", OBShortObjectDescription(self), NSStringFromSelector(_cmd), (int)err);
+        NSLog(@" SecKeyGetCSSMKey() returns"/*, OBShortObjectDescription(self), _cmd, (int)err*/);
         return;
     }
     if (kcKeyBuffer == NULL) {
-        NSLog(@"-[%@ %@]: SecKeyGetCSSMKey() returns NULL", OBShortObjectDescription(self), NSStringFromSelector(_cmd));
+        NSLog(@" SecKeyGetCSSMKey() returns NULL"/*, OBShortObjectDescription(self), _cmd*/);
         return;
     }
     
@@ -336,50 +329,6 @@ static const CSSM_VERSION callingApiVersion = {2,0};
 }
 
 @synthesize credentials;
-@synthesize groupOrder;
-
-static inline BOOL isMACAlg(CSSM_ALGORITHMS algid)
-{
-    /* This function is kind of a hack. Probably we should have distinct CSSM key subclasses for asymmetric and HMAC keys. */
-    switch (algid) {
-        case CSSM_ALGID_MD5HMAC:
-        case CSSM_ALGID_SHA1HMAC:
-            return YES;
-        default:
-            return NO;
-    }
-}
-
-- (id <NSObject,OFDigestionContext>)newVerificationContextForAlgorithm:(CSSM_ALGORITHMS)pk_signature_alg packDigest:(int)bitsPerInteger error:(NSError **)outError
-{
-    OFCDSAModule *thisCSP = [self csp];
-    
-    if (!thisCSP)
-        thisCSP = [OFCDSAModule appleCSP];
-    
-    if (!isMACAlg(pk_signature_alg)) {
-        CSSM_CC_HANDLE context = CSSM_INVALID_HANDLE;
-        CSSM_RETURN err = CSSM_CSP_CreateSignatureContext([thisCSP handle], pk_signature_alg, [self credentials], [self key], &context);
-        if (err != CSSM_OK || context == CSSM_INVALID_HANDLE) {
-            OFErrorFromCSSMReturn(outError, err, @"CSSM_CSP_CreateSignatureContext");
-            return nil;
-        }
-        
-        OFCSSMSignatureContext *ctxt = [[OFCSSMSignatureContext alloc] initWithCSP:thisCSP cc:context];
-        if (bitsPerInteger)
-            [ctxt setPackDigestsWithGroupOrder:bitsPerInteger];
-        return ctxt;
-    } else {
-        CSSM_CC_HANDLE context = CSSM_INVALID_HANDLE;
-        CSSM_RETURN err = CSSM_CSP_CreateMacContext([thisCSP handle], pk_signature_alg, [self key], &context);
-        if (err != CSSM_OK || context == CSSM_INVALID_HANDLE) {
-            OFErrorFromCSSMReturn(outError, err, @"CSSM_CSP_CreateMacContext");
-            return nil;
-        }
-        
-        return [[OFCSSMMacContext alloc] initWithCSP:thisCSP cc:context];
-    }    
-}
 
 - (NSMutableDictionary *)debugDictionary;
 {
@@ -466,10 +415,10 @@ static inline BOOL cssmCheckError(NSError **outError, CSSM_RETURN errcode, NSStr
 
 @implementation OFCSSMCryptographicContext
 
-- initWithCSP:(OFCDSAModule *)cryptographicServiceProvider cc:(CSSM_CC_HANDLE)ctxt;
+- initWithCSP:(OFCDSAModule *)cryptographcServiceProvider cc:(CSSM_CC_HANDLE)ctxt;
 {
     self = [super init];
-    csp = [cryptographicServiceProvider retain];
+    csp = [cryptographcServiceProvider retain];
     ccontext = ctxt;
     return self;
 }
@@ -552,11 +501,6 @@ static inline BOOL cssmCheckError(NSError **outError, CSSM_RETURN errcode, NSStr
 
 @implementation OFCSSMSignatureContext
 
-- (void)setPackDigestsWithGroupOrder:(int)sizeInBits;
-{
-//    OBASSERT(sizeInBits > 0);
-    generatorGroupOrderLog2 = sizeInBits;
-}
 - (BOOL)verifyInit:(NSError **)outError;
 {
     signing = NO;
@@ -578,14 +522,6 @@ static inline BOOL cssmCheckError(NSError **outError, CSSM_RETURN errcode, NSStr
 
 - (BOOL)verifyFinal:(NSData *)check error:(NSError **)outError;
 {
-    if (generatorGroupOrderLog2) {
-        NSData *unpacked = OFDigestConvertDLSigToDER(check, generatorGroupOrderLog2, outError);
-        if (!unpacked)
-            return NO;
-        OBINVARIANT([OFDigestConvertDLSigToPacked(unpacked, generatorGroupOrderLog2, NULL) isEqual:check]);
-        check = unpacked;
-    }
-    
     CSSM_DATA buf;
     buf.Data = (void *)[check bytes];
     buf.Length = [check length];
@@ -613,16 +549,7 @@ static inline BOOL cssmCheckError(NSError **outError, CSSM_RETURN errcode, NSStr
         return nil;
     
     // Note: We're relying again here on knowing that the memory API callbacks passed to the module were the libc allocators.
-    NSData *result = [NSData dataWithBytesNoCopy:buf.Data length:buf.Length freeWhenDone:YES];
-    
-    if (generatorGroupOrderLog2) {
-        NSData *packed = OFDigestConvertDLSigToPacked(result, generatorGroupOrderLog2, outError);
-        if (!packed)
-            return nil;
-        OBINVARIANT([OFDigestConvertDLSigToDER(packed, generatorGroupOrderLog2, NULL) isEqual:result]);
-        return packed;
-    } else
-        return result;
+    return [NSData dataWithBytesNoCopy:buf.Data length:buf.Length freeWhenDone:YES];
 }
 
 @end

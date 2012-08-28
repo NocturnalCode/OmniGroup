@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -9,66 +9,56 @@
 
 #import <UIKit/UIView.h>
 
-#import <OmniUI/OUIDocumentPickerItemViewTapArea.h>
-
 extern NSString * const OUIDocumentPickerScrollViewItemsBinding;
 
 @class OFPreference;
-@class OFSDocumentStoreItem, OFSDocumentStoreFileItem;
-@class OUIDragGestureRecognizer, OUIDocumentPickerItemView, OUIDocumentPickerFileItemView, OUIDocumentPickerScrollView;
+@class OUIDocumentStoreItem, OUIDocumentStoreFileItem, OUIDocumentPickerItemView, OUIDocumentPickerFileItemView, OUIDocumentPickerScrollView;
 
 typedef enum {
     OUIDocumentPickerItemSortByDate,
     OUIDocumentPickerItemSortByName,
 } OUIDocumentPickerItemSort;
 
+typedef enum {
+    OUIDocumentPickerItemViewTapAreaPreview,
+    OUIDocumentPickerItemViewTapAreaLabelAndDetails,
+} OUIDocumentPickerItemViewTapArea;
+
 @protocol OUIDocumentPickerScrollViewDelegate <UIScrollViewDelegate>
 - (void)documentPickerScrollView:(OUIDocumentPickerScrollView *)scrollView itemViewTapped:(OUIDocumentPickerItemView *)itemView inArea:(OUIDocumentPickerItemViewTapArea)area;
-- (void)documentPickerScrollView:(OUIDocumentPickerScrollView *)scrollView dragWithRecognizer:(OUIDragGestureRecognizer *)recognizer;
 @end
 
-@interface OUIDocumentPickerScrollView : UIScrollView <UIGestureRecognizerDelegate>
+@interface OUIDocumentPickerScrollView : UIScrollView
 
 @property(nonatomic,assign) id <OUIDocumentPickerScrollViewDelegate> delegate;
 
-- (void)willRotateWithDuration:(NSTimeInterval)duration;
-- (void)didRotate;
-@property(nonatomic,assign) BOOL landscape;
-@property(nonatomic,assign) BOOL ubiquityEnabled;
+// The size of the document prevew grid in items. That is, if gridSize.width = 4, then 4 items will be shown across the width.
+// The width must be at least one and integral. The height must be at least one, but may be non-integral if you want to have a row of itemss peeking out.
+- (void)setLandscape:(BOOL)landscape gridSize:(CGSize)gridSize;
+@property(nonatomic,readonly) CGSize gridSize;
 
-@property(nonatomic,readonly) NSSet *items;
-
-- (void)startAddingItems:(NSSet *)toAdd;
-- (void)finishAddingItems:(NSSet *)toAdd;
-@property(nonatomic,readonly) NSSet *itemsBeingAdded;
-
-- (void)startRemovingItems:(NSSet *)toRemove;
-- (void)finishRemovingItems:(NSSet *)toRemove;
-@property(nonatomic,readonly) NSSet *itemsBeingRemoved;
-
+@property(nonatomic,retain) NSSet *items;
 @property(nonatomic,readonly) NSArray *sortedItems;
 @property(nonatomic,retain) id draggingDestinationItem;
 
-- (void)scrollItemToVisible:(OFSDocumentStoreItem *)item animated:(BOOL)animated;
-- (void)scrollItemsToVisible:(id <NSFastEnumeration>)items animated:(BOOL)animated;
+- (void)scrollItemToVisible:(OUIDocumentStoreItem *)item animated:(BOOL)animated;
 - (void)sortItems;
 
-- (CGRect)frameForItem:(OFSDocumentStoreItem *)item;
-
-- (OUIDocumentPickerItemView *)itemViewForItem:(OFSDocumentStoreItem *)item;
-- (OUIDocumentPickerFileItemView *)fileItemViewForFileItem:(OFSDocumentStoreFileItem *)fileItem;
+- (OUIDocumentPickerItemView *)itemViewForItem:(OUIDocumentStoreItem *)item;
+- (OUIDocumentPickerFileItemView *)fileItemViewForFileItem:(OUIDocumentStoreFileItem *)fileItem;
 - (OUIDocumentPickerItemView *)itemViewHitInPreviewAreaByRecognizer:(UIGestureRecognizer *)recognizer;
 - (OUIDocumentPickerFileItemView *)fileItemViewHitInPreviewAreaByRecognizer:(UIGestureRecognizer *)recognizer;
 
-- (OFSDocumentStoreFileItem *)preferredVisibleItemFromSet:(NSSet *)fileItemsNeedingPreviewUpdate;
-- (void)previewsUpdatedForFileItem:(OFSDocumentStoreFileItem *)fileItem;
+- (void)previewsUpdatedForFileItem:(OUIDocumentStoreFileItem *)fileItem;
 
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated;
 
+- (void)willRotate;
+- (void)didRotate;
 
 @property(nonatomic) OUIDocumentPickerItemSort itemSort;
 
-- (void)startIgnoringItemForLayout:(OFSDocumentStoreItem *)item;
-- (void)stopIgnoringItemForLayout:(OFSDocumentStoreItem *)item;
+- (void)prepareToDeleteFileItems:(NSSet *)fileItems;
+- (void)finishedDeletingFileItems:(NSSet *)fileItems;
 
 @end

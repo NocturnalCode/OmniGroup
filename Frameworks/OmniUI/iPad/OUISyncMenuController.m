@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -10,12 +10,11 @@
 #import <OmniFileStore/OFSFileInfo.h>
 #import <OmniFoundation/NSString-OFSimpleMatching.h>
 #import <OmniFoundation/OFPreference.h>
-#import <OmniFileStore/OFSDocumentStore.h>
-#import <OmniFileStore/OFSDocumentStoreFileItem.h>
 #import <OmniUI/OUIAppController.h>
 #import <OmniUI/OUIBarButtonItem.h>
 #import <OmniUI/OUIDocumentPicker.h>
-#import <OmniUI/UITableView-OUIExtensions.h>
+#import <OmniUI/OUIDocumentStore.h>
+#import <OmniUI/OUIDocumentStoreFileItem.h>
 
 #import <MobileCoreServices/MobileCoreServices.h>
 
@@ -25,7 +24,6 @@
 #import "OUIWebDAVSyncListController.h"
 #import "OUIWebDAVSetup.h"
 #import "OUIRestoreSampleDocumentListController.h"
-#import "OUISingleDocumentAppController.h"
 
 RCS_ID("$Id$")
 
@@ -33,7 +31,7 @@ RCS_ID("$Id$")
 static NSString * const ResetSampleDocumentReuseIdentifier = @"ResetSampleDocumentReuseIdentifier";
 static NSString * const ImportDocumentReuseIdentifier = @"ImportDocumentReuseIdentifier";
 
-@interface OUISyncMenuController (/*Private*/) <UIPopoverControllerDelegate, UIActionSheetDelegate, UITableViewDelegate, UITableViewDataSource>
+@interface OUISyncMenuController (/*Private*/)
 + (NSURL *)_urlFromPreference:(OFPreference *)preference;
 - (void)_discardMenu;
 @end
@@ -46,11 +44,6 @@ enum {
 };
 
 @implementation OUISyncMenuController
-{
-    UIPopoverController *_menuPopoverController;
-    UINavigationController *_menuNavigationController;
-    BOOL _isExporting;
-}
 
 + (void)displayInSheet;
 {
@@ -72,6 +65,11 @@ enum {
     [navigationController release];
 }
 
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil;
+{
+    return [super initWithNibName:@"OUISyncMenu" bundle:OMNI_BUNDLE];
+}
+
 - (void)dealloc;
 {
     [_menuNavigationController release];
@@ -87,12 +85,7 @@ enum {
         return;
     }
     
-    UITableView *tableView = (UITableView *)self.view;
-    [tableView reloadData];
-    OUITableViewAdjustHeightToFitContents(tableView);
-    tableView.scrollEnabled = NO;
-    
-    self.contentSizeForViewInPopover = self.view.frame.size; // Make sure we set this before creating our popover
+    self.contentSizeForViewInPopover = CGSizeMake(320, 176); // Make sure we set this before creating our popover
     
     if (!_menuNavigationController) {
         _menuNavigationController = [[UINavigationController alloc] initWithRootViewController:self];
@@ -105,11 +98,11 @@ enum {
     }
     
     [[OUIAppController controller] presentPopover:_menuPopoverController fromBarButtonItem:barItem permittedArrowDirections:UIPopoverArrowDirectionUp animated:YES];
+    [(UITableView *)self.view reloadData];
 }
 
 #pragma mark -
 #pragma mark Sheet specific stuff
-
 - (void)cancel:(id)sender;
 {
     [self.navigationController dismissModalViewControllerAnimated:YES];
@@ -118,15 +111,6 @@ enum {
 
 #pragma mark -
 #pragma mark UIViewController subclass
-
-- (void)loadView;
-{
-    UITableView *tableView = [[UITableView alloc] initWithFrame:CGRectMake(0, 0, 320, 0) style:UITableViewStyleGrouped];
-    tableView.delegate = self;
-    tableView.dataSource = self;
-    self.view = tableView;
-    [tableView release];
-}
 
 - (void)viewDidLoad;
 {
@@ -185,7 +169,7 @@ enum {
     
     if (indexPath.section == ResetSampleDocumentSection) {
         reuseIdentifier = ResetSampleDocumentReuseIdentifier;
-        title = [[OUISingleDocumentAppController controller] sampleDocumentsDirectoryTitle];
+        title = NSLocalizedStringFromTableInBundle(@"Restore Sample Document", @"OmniUI", OMNI_BUNDLE, @"Restore Sample Document Title");
     }
     else {
         reuseIdentifier = ImportDocumentReuseIdentifier;
@@ -200,7 +184,7 @@ enum {
                 description = [[OFPreference preferenceForKey:OUIMobileMeUsername] stringValue];
                 break;
             case OUIOmniSync:
-                title = _isExporting ? NSLocalizedStringFromTableInBundle(@"Export to Omni Sync Server", @"OmniUI", OMNI_BUNDLE, @"Export document title") : NSLocalizedStringFromTableInBundle(@"Copy from Omni Sync Server", @"OmniUI", OMNI_BUNDLE, @"Import document title");
+                title = _isExporting ? NSLocalizedStringFromTableInBundle(@"Export to Omni Sync", @"OmniUI", OMNI_BUNDLE, @"Export document title") : NSLocalizedStringFromTableInBundle(@"Copy from Omni Sync", @"OmniUI", OMNI_BUNDLE, @"Import document title");
                 description = [[OFPreference preferenceForKey:OUIOmniSyncUsername] stringValue];
                 break;
             case OUIWebDAVSync:
@@ -245,23 +229,6 @@ enum {
     return cell;
 }
 
-- (NSIndexPath *)tableView:(UITableView *)tableView willSelectRowAtIndexPath:(NSIndexPath *)indexPath;
-{
-    if ([[OUIAppController controller] isRunningRetailDemo]) {
-#ifdef DEBUG_rachael
-        NSLog(@"no import for you!");
-#endif
-
-        UIAlertView *replaceDocumentAlert = [[UIAlertView alloc] initWithTitle:NSLocalizedStringFromTableInBundle(@"Feature not enabled for this demo", @"OmniUI", OMNI_BUNDLE, @"disabled for demo") message:nil delegate:nil cancelButtonTitle:NSLocalizedStringFromTableInBundle(@"Done", @"OmniUI", OMNI_BUNDLE, @"Done") otherButtonTitles:nil];
-        [replaceDocumentAlert show];
-        [replaceDocumentAlert release];
-        
-        return nil;
-    }
-    
-    return indexPath;
-}
-
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath;
 {
     [_menuPopoverController dismissPopoverAnimated:YES];
@@ -280,7 +247,7 @@ enum {
                 break;
             case OUIOmniSync:
                 previousConnectionUsername = [[OFPreference preferenceForKey:OUIOmniSyncUsername] stringValue];
-                previousConnectionLocation = [[NSURL URLWithString:@"https://sync.omnigroup.com/"] URLByAppendingPathComponent:[previousConnectionUsername stringByAddingPercentEscapesUsingEncoding:NSUTF8StringEncoding] isDirectory:YES];
+                previousConnectionLocation = [NSURL URLWithString:[@"https://sync.omnigroup.com/" stringByAppendingPathComponent:previousConnectionUsername]];
                 break;
             case OUIWebDAVSync:
                 previousConnectionLocation = [[self class] _urlFromPreference:[OFPreference preferenceForKey:OUIWebDAVLocation]];
@@ -289,7 +256,7 @@ enum {
             case OUIiTunesSync:
             {
                 // iTunes only allows interaction with the top Documents directory 
-                previousConnectionLocation = [OFSDocumentStore userDocumentsDirectoryURL];
+                previousConnectionLocation = [OUIDocumentStore userDocumentsDirectoryURL];
                 previousConnectionUsername = @"local";   // OUIWebDAVConnection likes having a username so that it knows that it is setup correctly
                 break;
             }
@@ -321,9 +288,7 @@ enum {
         }
     }
     else if (indexPath.section == ResetSampleDocumentSection) {
-        [self.navigationController dismissModalViewControllerAnimated:YES];
-        [[OUIAppController controller] restoreSampleDocuments:nil];
-        return;
+        viewController = [[OUIRestoreSampleDocumentListController alloc] init];
     }
     
     [self.navigationController dismissModalViewControllerAnimated:YES];
@@ -344,9 +309,6 @@ enum {
 - (void)popoverControllerDidDismissPopover:(UIPopoverController *)popoverController;
 {
     [self _discardMenu];
-
-    // Don't keep the popover controller alive needlessly.
-    [[OUIAppController controller] forgetPossiblyVisiblePopoverIfAlreadyHidden];
 }
 
 @synthesize isExporting = _isExporting;

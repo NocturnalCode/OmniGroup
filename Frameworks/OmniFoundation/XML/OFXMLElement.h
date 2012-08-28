@@ -8,6 +8,7 @@
 // $Id$
 
 #import <OmniFoundation/OFObject.h>
+
 #import <OmniFoundation/OFXMLWhitespaceBehavior.h>
 
 @class NSArray, NSMutableArray, NSDate, NSData, NSMutableDictionary, NSMutableString, NSError;
@@ -61,6 +62,7 @@ typedef void (*OFXMLElementApplier)(OFXMLElement *element, void *context);
 - (NSString *) attributeNamed: (NSString *) name;
 - (void) setAttribute: (NSString *) name string: (NSString *) value;
 - (void) setAttribute: (NSString *) name value: (id) value;
+- (void) setAttribute: (NSString *) name integer: (int) value;
 - (void) setAttribute: (NSString *) name integer: (int) value;
 - (void) setAttribute: (NSString *) name real: (float) value;  // "%g"
 - (void) setAttribute: (NSString *) name real: (float) value format: (NSString *) formatString;

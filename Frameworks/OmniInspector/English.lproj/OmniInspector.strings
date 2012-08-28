@@ -1,4 +1,4 @@
-﻿/* delete workspace Cancel */
+/* delete workspace Cancel */
 "Cancel" = "Cancel";
 
 /* delete workspace warning - multiple selection */
@@ -14,9 +14,6 @@
 "Edit Workspaces" = "Edit Workspaces";
 
 /* menu title */
-"Hide Inspector" = "Hide Inspector";
-
-/* menu title */
 "Hide Inspectors" = "Hide Inspectors";
 
 /* delete workspace OK */
@@ -27,9 +24,6 @@
 
 /* Save Workspace menu item */
 "Save Workspace..." = "Save Workspace…";
-
-/* menu title */
-"Show Inspector" = "Show Inspector";
 
 /* menu title */
 "Show Inspectors" = "Show Inspectors";

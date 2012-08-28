@@ -1,4 +1,4 @@
-// Copyright 2003-2005, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2003-2005, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -65,8 +65,7 @@ static inline NSData *OFCreateNSDataFromPropertyList(id plist, CFPropertyListFor
     if (data)
         return NSMakeCollectable(data);
     else {
-        if (outError)
-            *outError = [(id)CFMakeCollectable(*(CFErrorRef *)outError) autorelease];
+        *outError = [(id)CFMakeCollectable(*(CFErrorRef *)outError) autorelease];
         return nil;
     }
 }

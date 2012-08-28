@@ -1,4 +1,4 @@
-// Copyright 2004-2005, 2007-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2004-2005, 2007-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -59,6 +59,32 @@ static BOOL isOperatingSystemLaterThanVersionString(NSString *versionString)
 
 #if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
 
++ (BOOL)isOperatingSystemiOS32OrLater; // iOS 3.2
+{
+    static BOOL initialized = NO;
+    static BOOL isLater;
+
+    if (!initialized) {
+        isLater = isOperatingSystemLaterThanVersionString(@"3.2");
+        initialized = YES;
+    }
+
+    return isLater;
+}
+
++ (BOOL)isOperatingSystemiOS40OrLater; // iOS 4.0
+{
+    static BOOL initialized = NO;
+    static BOOL isLater;
+
+    if (!initialized) {
+        isLater = isOperatingSystemLaterThanVersionString(@"4.0");
+        initialized = YES;
+    }
+
+    return isLater;
+}
+
 + (BOOL)isOperatingSystemiOS50OrLater; // iOS 5.0
 {
     static BOOL initialized = NO;
@@ -72,33 +98,21 @@ static BOOL isOperatingSystemLaterThanVersionString(NSString *versionString)
     return isLater;
 }
 
-+ (BOOL)isOperatingSystemiOS51OrLater; // iOS 5.1
-{
-    static BOOL initialized = NO;
-    static BOOL isLater;
-    
-    if (!initialized) {
-        isLater = isOperatingSystemLaterThanVersionString(@"5.1");
-        initialized = YES;
-    }
-    
-    return isLater;
-}
-
-+ (BOOL)isOperatingSystemiOS60OrLater; // iOS 6.0
-{
-    static BOOL initialized = NO;
-    static BOOL isLater;
-    
-    if (!initialized) {
-        isLater = isOperatingSystemLaterThanVersionString(@"6.0");
-        initialized = YES;
-    }
-    
-    return isLater;
-}
 
 #else
+
++ (BOOL)isOperatingSystemLeopardOrLater; // 10.5
+{
+    static BOOL initialized = NO;
+    static BOOL isLater;
+
+    if (!initialized) {
+        isLater = isOperatingSystemLaterThanVersionString(@"10.5");
+        initialized = YES;
+    }
+
+    return isLater;
+}
 
 + (BOOL)isOperatingSystemSnowLeopardOrLater; // 10.6
 {
@@ -120,19 +134,6 @@ static BOOL isOperatingSystemLaterThanVersionString(NSString *versionString)
 
     if (!initialized) {
         isLater = isOperatingSystemLaterThanVersionString(@"10.7");
-        initialized = YES;
-    }
-
-    return isLater;
-}
-
-+ (BOOL)isOperatingSystemMountainLionOrLater; // 10.8
-{
-    static BOOL initialized = NO;
-    static BOOL isLater;
-
-    if (!initialized) {
-        isLater = isOperatingSystemLaterThanVersionString(@"10.8");
         initialized = YES;
     }
 

@@ -1,4 +1,4 @@
-// Copyright 2000-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2000-2008, 2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -31,7 +31,6 @@ static NSColorList *classicCrayonsColorList(void)
 }
 
 @interface NSColorPicker (Private)
-- (void)_switchToPicker:(NSColorPicker *)picker;
 - (void)attachColorList:(id)list makeSelected:(BOOL)flag;
 - (void)refreashUI; // sic
 @end
@@ -461,7 +460,7 @@ static CGFloat _nearnessWithWrap(CGFloat a, CGFloat b)
     CGFloat value1 = 1.0f - a + b;
     CGFloat value2 = 1.0f - b + a;
     CGFloat value3 = a - b;
-    return MIN3(ABS(value1), ABS(value2), ABS(value3));
+    return MIN(ABS(value1), MIN(ABS(value2), ABS(value3)));
 }
 
 static CGFloat _colorCloseness(const OANamedColorEntry *e1, const OANamedColorEntry *e2)

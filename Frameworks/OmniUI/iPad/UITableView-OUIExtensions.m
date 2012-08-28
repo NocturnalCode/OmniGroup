@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -125,9 +125,7 @@ void OUITableViewAdjustHeightToFitContents(UITableView *tableView)
     OBASSERT(contentSize.height > 0); // No rows?
     
     CGRect frame = tableView.frame;
-    
-    // Seems to be a UIKit bug that tableView.contentSize is 1 pixel too high. This little hack will cover up the extra pixel of white that shows just under the last cell. This is only noticeable when the cell is selected (non-white). 
-    frame.size.height = contentSize.height - 1;
+    frame.size.height = contentSize.height;
     
     tableView.frame = frame;
     tableView.scrollEnabled = NO;

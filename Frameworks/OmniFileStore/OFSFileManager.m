@@ -1,4 +1,4 @@
-// Copyright 2008-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2008-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -8,13 +8,12 @@
 #import <OmniFileStore/OFSFileManager.h>
 
 #import <OmniFileStore/OFSFileFileManager.h>
-#import <OmniFileStore/OFSFileInfo.h>
 #import <OmniFileStore/OFSDAVFileManager.h>
 #import <OmniFileStore/Errors.h>
 #import <OmniFoundation/NSString-OFSimpleMatching.h>
-#import <OmniFoundation/NSString-OFPathExtensions.h>
 
 #import "OFSFileOperation.h"
+#import "OFSFileInfo.h"
 
 RCS_ID("$Id$");
 
@@ -24,23 +23,22 @@ NSInteger OFSFileManagerDebug = 0;
 // If the file name ends in a number, we are likely dealing with a duplicate.
 void OFSFileManagerSplitNameAndCounter(NSString *originalName, NSString **outName, NSUInteger *outCounter)
 {
-    [originalName splitName:outName andCounter:outCounter];
+    NSString *name = originalName;
+    NSUInteger counter = 0;
+    NSRange notNumberRange = [name rangeOfCharacterFromSet:[[NSCharacterSet decimalDigitCharacterSet] invertedSet] options:NSBackwardsSearch];
+    
+    // Has at least one digit at the end and isn't all digits?
+    if (notNumberRange.length > 0 && NSMaxRange(notNumberRange) < [name length]) {
+        // Is there a space before the digits?
+        if ([name characterAtIndex:NSMaxRange(notNumberRange) - 1] == ' ') {
+            counter = [[name substringFromIndex:NSMaxRange(notNumberRange)] intValue];
+            name = [name substringToIndex:NSMaxRange(notNumberRange) - 1];
+        }
+    }
+    
+    *outName = name;
+    *outCounter = counter;
 }
-
-#if NS_BLOCKS_AVAILABLE
-@interface OFSFileOperationBlockTarget : OFObject <OFSFileManagerAsynchronousOperationTarget> {
-    long long _processedByteCount;
-    NSOperationQueue *_blockOperationQueue;
-    void (^_receiveDataBlock)(NSData *);
-    void (^_progressBlock)(long long);
-    void (^_completionBlock)(NSError *);
-}
-@property (retain) NSOperationQueue *blockOperationQueue;
-@property (copy) void (^receiveDataBlock)(NSData *);
-@property (copy) void (^progressBlock)(long long);
-@property (copy) void (^completionBlock)(NSError *);
-@end
-#endif
 
 @implementation OFSFileManager
 
@@ -51,8 +49,8 @@ void OFSFileManagerSplitNameAndCounter(NSString *originalName, NSString **outNam
     OFSFileManagerDebug = [[NSUserDefaults standardUserDefaults] integerForKey:@"OFSFileManagerDebug"];
     
     // Hard to turn this on via defaults write on the device...
-#ifdef DEBUG_kc
-    OFSFileManagerDebug = 9;
+#if 0 && defined(DEBUG_bungi)
+    OFSFileManagerDebug = 1;
 #endif
 }
 
@@ -116,35 +114,6 @@ void OFSFileManagerSplitNameAndCounter(NSString *originalName, NSString **outNam
     return [[[OFSFileOperation alloc] initWithFileManager:self writingData:data atomically:atomically toURL:url target:target] autorelease];
 }
 
-#if NS_BLOCKS_AVAILABLE
-- (id <OFSAsynchronousOperation>)asynchronousReadContentsOfURL:(NSURL *)url receiveDataBlock:(void (^)(NSData *))receiveDataBlock progressBlock:(void (^)(long long))progressBlock completionBlock:(void (^)(NSError *))completionBlock;
-{
-    if (progressBlock == NULL && receiveDataBlock == NULL && completionBlock == NULL)
-        return [self asynchronousReadContentsOfURL:url withTarget:nil];
-
-    OFSFileOperationBlockTarget *blockTarget = [[OFSFileOperationBlockTarget alloc] init];
-    blockTarget.receiveDataBlock = receiveDataBlock;
-    blockTarget.progressBlock = progressBlock;
-    blockTarget.completionBlock = completionBlock;
-    id <OFSAsynchronousOperation> operation = [self asynchronousReadContentsOfURL:url withTarget:blockTarget];
-    [blockTarget release];
-    return operation;
-}
-
-- (id <OFSAsynchronousOperation>)asynchronousWriteData:(NSData *)data toURL:(NSURL *)url atomically:(BOOL)atomically progressBlock:(void (^)(long long))progressBlock completionBlock:(void (^)(NSError *))completionBlock;
-{
-    if (progressBlock == NULL && completionBlock == NULL)
-        return [self asynchronousWriteData:data toURL:url atomically:atomically withTarget:nil];
-
-    OFSFileOperationBlockTarget *blockTarget = [[OFSFileOperationBlockTarget alloc] init];
-    blockTarget.progressBlock = progressBlock;
-    blockTarget.completionBlock = completionBlock;
-    id <OFSAsynchronousOperation> operation = [self asynchronousWriteData:data toURL:url atomically:atomically withTarget:blockTarget];
-    [blockTarget release];
-    return operation;
-}
-#endif
-
 - (NSURL *)availableURL:(NSURL *)startingURL;
 {
     BOOL isFileURL = [startingURL isFileURL];
@@ -194,10 +163,10 @@ void OFSFileManagerSplitNameAndCounter(NSString *originalName, NSString **outNam
                 counter = 2; // First duplicate should be "Foo 2".
             
             if (shouldContainExtension) {
-                fileName = [[NSString alloc] initWithFormat:@"%@ %lu.%@", name, counter, extension];
+                fileName = [[NSString alloc] initWithFormat:@"%@ %d.%@", name, counter, extension];
             }
             else {
-                fileName = [[NSString alloc] initWithFormat:@"%@ %lu", name, counter];
+                fileName = [[NSString alloc] initWithFormat:@"%@ %d", name, counter];
             }
             
             counter++;
@@ -222,72 +191,3 @@ void OFSFileManagerSplitNameAndCounter(NSString *originalName, NSString **outNam
 
 @end
 
-#if NS_BLOCKS_AVAILABLE
-
-@implementation OFSFileOperationBlockTarget
-
-@synthesize blockOperationQueue = _blockOperationQueue, receiveDataBlock = _receiveDataBlock, progressBlock = _progressBlock, completionBlock = _completionBlock;
-
-- (id)init;
-{
-    self = [super init];
-    if (self == nil)
-        return nil;
-
-    self.blockOperationQueue = [NSOperationQueue currentQueue];
-
-    return self;
-}
-
-- (void)dealloc;
-{
-    [_blockOperationQueue release];
-    [_receiveDataBlock release];
-    [_progressBlock release];
-    [_completionBlock release];
-    [super dealloc];
-}
-
-- (void)fileManager:(OFSFileManager *)fileManager operationDidFinish:(id <OFSAsynchronousOperation>)operation withError:(NSError *)error;
-{
-    if (_completionBlock != NULL) {
-        [self.blockOperationQueue addOperationWithBlock:^{
-            _completionBlock(error);
-        }];
-    }
-}
-
-- (void)_didProcessBytes:(long long)processedBytes;
-{
-    OBPRECONDITION(_progressBlock != NULL);
-    [self.blockOperationQueue addOperationWithBlock:^{
-        _progressBlock(_processedByteCount);
-    }];
-}
-
-// For write operations, the 'didProcessBytes' will be called. For read operations, the 'didReceiveData' will be called if present, otherwise the didProcessBytes.
-- (void)fileManager:(OFSFileManager *)fileManager operation:(id <OFSAsynchronousOperation>)operation didReceiveData:(NSData *)data;
-{
-    if (_receiveDataBlock != NULL) {
-        [self.blockOperationQueue addOperationWithBlock:^{
-            _receiveDataBlock(data);
-        }];
-    }
-
-    if (_progressBlock != NULL) {
-        _processedByteCount += [data length];
-        [self _didProcessBytes:_processedByteCount];
-    }
-}
-
-- (void)fileManager:(OFSFileManager *)fileManager operation:(id <OFSAsynchronousOperation>)operation didProcessBytes:(long long)processedBytes;
-{
-    OBASSERT(_receiveDataBlock == NULL);
-
-    if (_progressBlock != NULL)
-        [self _didProcessBytes:processedBytes];
-}
-
-@end
-
-#endif

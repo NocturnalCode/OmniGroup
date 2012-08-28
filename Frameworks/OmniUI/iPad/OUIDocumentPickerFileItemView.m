@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -8,11 +8,10 @@
 #import <OmniUI/OUIDocumentPickerFileItemView.h>
 
 #import <OmniUI/OUIDocumentPreviewView.h>
+#import <OmniUI/OUIDocumentStoreFileItem.h>
 #import <OmniUI/UIView-OUIExtensions.h>
-#import <OmniFileStore/OFSDocumentStoreFileItem.h>
 #import <OmniFoundation/OFBinding.h>
 
-#import "OUIDocumentPickerItemNameAndDateView.h"
 #import "OUIDocumentPickerItemView-Internal.h"
 #import "OUIParameters.h"
 
@@ -54,18 +53,6 @@ static id _commonInit(OUIDocumentPickerFileItemView *self)
     // We might be a dragging view (in which case we aren't the source view itself).
     
     [self _selectedChanged];
-    [self _downloadRequestedChanged];
-}
-
-- (void)ubiquityChanged;
-{
-    OFSDocumentStoreFileItem *fileItem = (OFSDocumentStoreFileItem *)self.item;
-    OBASSERT(!fileItem || [fileItem isKindOfClass:[OFSDocumentStoreFileItem class]]);
-    
-    if (self.ubiquityEnabled && !fileItem.isUbiquitous)
-        self.nameAndDateView.nameBadgeImage = [UIImage imageNamed:@"OUINotInCloud.png"];
-    else
-        self.nameAndDateView.nameBadgeImage = nil;
 }
 
 - (OUIDocumentPreview *)preview;
@@ -90,58 +77,6 @@ static id _commonInit(OUIDocumentPickerFileItemView *self)
     [layer addAnimation:animation forKey:@"bounceTransform"];
 }
 
-#pragma mark - Accessibility
-- (NSString *)accessibilityLabel;
-{
-    OFSDocumentStoreFileItem *fileItem = (OFSDocumentStoreFileItem *)self.item;
-    OBASSERT(!fileItem || [fileItem isKindOfClass:[OFSDocumentStoreFileItem class]]);
-    
-    // Accessibilit label should read: Name, Badge Status (if any), Modification Date, iCloud Exclusion (if any)
-    
-    // Name
-    NSMutableString *label = [NSMutableString stringWithFormat:@"%@.", fileItem.name];
-    
-    // Badge Status
-    NSString *badgeStatus = nil;
-    if (fileItem.hasUnresolvedConflicts) {
-        badgeStatus = NSLocalizedStringFromTableInBundle(@"In conflict", @"OmniUI", OMNI_BUNDLE, @"In conflict accessibility label.");
-    }
-    else if (fileItem.isDownloaded == NO) {
-        badgeStatus = NSLocalizedStringFromTableInBundle(@"Not downloaded", @"OmniUI", OMNI_BUNDLE, @"Not downloaded accessibility label.");
-    }
-    else if (fileItem.isUploaded == NO) {
-        badgeStatus = NSLocalizedStringFromTableInBundle(@"Not uploaded", @"OmniUI", OMNI_BUNDLE, @"Not uploaded accessibility label.");
-    }
-    
-    if (badgeStatus) {
-        [label appendFormat:@" %@.", badgeStatus];
-    }
-    
-    
-    // Modification Date
-    [label appendFormat:@" %@.", [OFSDocumentStoreItem displayStringForDate:fileItem.date]];
-    
-    // iCloud Exclusion
-    if (self.ubiquityEnabled && !fileItem.isUbiquitous) {
-        NSString *notIniCloud = NSLocalizedStringFromTableInBundle(@"Not in iCloud", @"OmniUI", OMNI_BUNDLE, @"Not in iCloud accessibility label.");
-        [label appendFormat:@" %@.", notIniCloud];
-    }
-    
-    return label;
-}
-
-- (UIAccessibilityTraits)accessibilityTraits;
-{
-    OFSDocumentStoreFileItem *fileItem = (OFSDocumentStoreFileItem *)self.item;
-    OBASSERT(!fileItem || [fileItem isKindOfClass:[OFSDocumentStoreFileItem class]]);
-
-    if (fileItem.selected) {
-        return UIAccessibilityTraitSelected;
-    }
-    
-    return UIAccessibilityTraitNone;
-}
-
 #pragma mark -
 #pragma mark OUIDocumentPickerItemView subclass
 
@@ -150,23 +85,19 @@ static unsigned FileItemContext;
 - (void)startObservingItem:(id)item;
 {
     [super startObservingItem:item];
-    [item addObserver:self forKeyPath:OFSDocumentStoreFileItemSelectedBinding options:0 context:&FileItemContext];
-    [item addObserver:self forKeyPath:OFSDocumentStoreFileItemIsUbiquitousBinding options:0 context:&FileItemContext];
-    [item addObserver:self forKeyPath:OFSDocumentStoreFileItemDownloadRequestedBinding options:0 context:&FileItemContext];
+    [item addObserver:self forKeyPath:OUIDocumentStoreFileItemSelectedBinding options:0 context:&FileItemContext];
 }
 
 - (void)stopObservingItem:(id)item;
 {
     [super stopObservingItem:item];
-    [item removeObserver:self forKeyPath:OFSDocumentStoreFileItemSelectedBinding context:&FileItemContext];
-    [item removeObserver:self forKeyPath:OFSDocumentStoreFileItemIsUbiquitousBinding context:&FileItemContext];
-    [item removeObserver:self forKeyPath:OFSDocumentStoreFileItemDownloadRequestedBinding context:&FileItemContext];
+    [item removeObserver:self forKeyPath:OUIDocumentStoreFileItemSelectedBinding context:&FileItemContext];
 }
 
 - (NSSet *)previewedFileItems;
 {
-    OFSDocumentStoreFileItem *fileItem = (OFSDocumentStoreFileItem *)self.item;
-    OBASSERT(!fileItem || [fileItem isKindOfClass:[OFSDocumentStoreFileItem class]]);
+    OUIDocumentStoreFileItem *fileItem = (OUIDocumentStoreFileItem *)self.item;
+    OBASSERT(!fileItem || [fileItem isKindOfClass:[OUIDocumentStoreFileItem class]]);
 
     if (fileItem)
         return [NSSet setWithObject:fileItem];
@@ -190,12 +121,8 @@ static unsigned FileItemContext;
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context;
 {
     if (context == &FileItemContext) {
-        if (OFISEQUAL(keyPath, OFSDocumentStoreFileItemSelectedBinding))
+        if (OFISEQUAL(keyPath, OUIDocumentStoreFileItemSelectedBinding))
             [self _selectedChanged];
-        else if (OFISEQUAL(keyPath, OFSDocumentStoreFileItemIsUbiquitousBinding))
-            [self ubiquityChanged];
-        else if (OFISEQUAL(keyPath, OFSDocumentStoreFileItemDownloadRequestedBinding))
-            [self _downloadRequestedChanged];
         else
             OBASSERT_NOT_REACHED("Unknown KVO keyPath");
         return;
@@ -208,22 +135,12 @@ static unsigned FileItemContext;
 
 - (void)_selectedChanged;
 {
-    OFSDocumentStoreFileItem *fileItem = (OFSDocumentStoreFileItem *)self.item;
-    OBASSERT(!fileItem || [fileItem isKindOfClass:[OFSDocumentStoreFileItem class]]);
+    OUIDocumentStoreFileItem *fileItem = (OUIDocumentStoreFileItem *)self.item;
+    OBASSERT(!fileItem || [fileItem isKindOfClass:[OUIDocumentStoreFileItem class]]);
     
     OUIDocumentPreviewView *previewView = self.previewView;
     
     previewView.selected = fileItem.selected;
-}
-
-- (void)_downloadRequestedChanged;
-{
-    OFSDocumentStoreFileItem *fileItem = (OFSDocumentStoreFileItem *)self.item;
-    OBASSERT(!fileItem || [fileItem isKindOfClass:[OFSDocumentStoreFileItem class]]);
-
-    OUIDocumentPreviewView *previewView = self.previewView;
-
-    previewView.downloadRequested = fileItem.downloadRequested;
 }
 
 @end

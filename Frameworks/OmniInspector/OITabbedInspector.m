@@ -1,4 +1,4 @@
-// Copyright 2005-2007, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2005-2007, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -21,10 +21,6 @@
 #import "OIButtonMatrixBackgroundView.h"
 
 RCS_ID("$Id$")
-
-@interface NSColor (PrivateAPI)
-+ (NSColor *)toolbarBackgroundColor;
-@end
 
 @interface OITabbedInspector (/*Private*/)
 - (void)_selectTabBasedOnObjects:(NSArray *)objects;
@@ -171,8 +167,7 @@ RCS_ID("$Id$")
     if (duringMouseDown) {
         NSUInteger partial = [prefix length];
         [windowTitleAttributedstring setAttributes:textAttributes range:NSMakeRange(0, partial)];
-        // NSFont's +systemFontOfSize: does not have an italic variant.  So I'm just using Helvetica.  Using +userFontOfSize: is not a good option because the userFont can be changed for other reasons by apps.
-        NSDictionary *italicAttributes = [NSDictionary dictionaryWithObjectsAndKeys:[[NSFontManager sharedFontManager] convertFont:[[NSFontManager sharedFontManager] convertFont:[NSFont systemFontOfSize:[NSFont labelFontSize]] toFamily:@"Helvetica"] toHaveTrait:NSItalicFontMask], NSFontAttributeName, nil];
+        NSDictionary *italicAttributes = [NSDictionary dictionaryWithObjectsAndKeys:[[NSFontManager sharedFontManager] convertFont:[NSFont userFontOfSize:[NSFont labelFontSize]] toHaveTrait:NSItalicFontMask], NSFontAttributeName, nil];
         [windowTitleAttributedstring setAttributes:italicAttributes range:NSMakeRange(partial, [[windowTitleAttributedstring string] length] - partial)];
     } else {
         [windowTitleAttributedstring setAttributes:textAttributes range:NSMakeRange(0, [[windowTitleAttributedstring string] length])];
@@ -724,8 +719,6 @@ RCS_ID("$Id$")
     
     // Any newly exposed inspectors should start tracking; any newly hidden should stop
     [self _updateSubInspectorObjects];
-
-    [[OIInspectorRegistry sharedInspector] configurationsChanged];
 }
 
 - (void)_updateButtonsToMatchSelection;

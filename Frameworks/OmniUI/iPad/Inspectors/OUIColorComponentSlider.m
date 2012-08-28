@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -12,9 +12,9 @@
 #import <OmniQuartz/OQColor.h>
 #import <OmniQuartz/OQDrawing.h>
 
-#import "OUIParameters.h"
-
 RCS_ID("$Id$");
+
+
 
 @interface OUIColorComponentSliderKnobLayer : CALayer
 {
@@ -89,6 +89,9 @@ static const CGFloat kKnobBorderThickness = 6;
 
 @end
 
+@interface OUIColorComponentSlider (/*Private*/)
+- (void)_setValueFromDragTouch:(UITouch *)touch;
+@end
 
 @implementation OUIColorComponentSlider
 
@@ -113,7 +116,6 @@ static id _commonInit(OUIColorComponentSlider *self)
     self->_knobLayer = [[OUIColorComponentSliderKnobLayer alloc] init];
     self->_knobLayer.needsDisplayOnBoundsChange = YES;
     self->_knobLayer.anchorPoint = CGPointZero; // don't want half pixels from setting the position (our width/height are odd).
-    self->_knobLayer.contentsScale = _handleImage().scale;
     [self->_knobLayer setNeedsDisplay];
 
     return self;
@@ -363,13 +365,18 @@ static CGFloat _xToValue(OUIColorComponentSlider *self, CGFloat x)
 {
     CGRect bounds = self.bounds;
     CGContextRef ctx = UIGraphicsGetCurrentContext();
-
-    OUIInspectorWellDraw(ctx, self.bounds,
-                         OUIInspectorWellCornerTypeLargeRadius, OUIInspectorWellBorderTypeLight, YES/*innerShadow*/,
-                         ^(CGRect interiorRect){
+    
+    OUIInspectorWellDrawOuterShadow(ctx, bounds, YES/*rounded*/);
+    
+    // Fill the background with the checkerboard, clipped to the bounding path.
+    CGContextSaveGState(ctx);
+    {
+        OUIInspectorWellAddPath(ctx, bounds, YES/*rounded*/);
+        CGContextClip(ctx);
+        
         // All the non-alpha channels should be opaque and don't need this checkerboard
         if ([self representsAlpha]) {
-            OUIDrawTransparentColorBackground(ctx, CGRectInset(bounds, 1, 1), CGSizeMake(1,1));
+            OUIDrawTransparentColorBackground(ctx, CGRectInset(self.bounds, 1, 1), CGSizeMake(1,1));
         }
         
         if (self.enabled) {
@@ -390,7 +397,10 @@ static CGFloat _xToValue(OUIColorComponentSlider *self, CGFloat x)
                 CGShadingRelease(shading);
             }
         }
-    });
+    }
+    CGContextRestoreGState(ctx);
+    
+    OUIInspectorWellDrawBorderAndInnerShadow(ctx, bounds, YES/*rounded*/, YES/*innerShadow*/);
 }
 
 - (void)layoutSubviews;

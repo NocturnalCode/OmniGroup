@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -57,13 +57,6 @@ static BOOL _viewsCompatible(UIView *self, UIView *otherView)
         return YES;
     }
     
-#ifdef OMNI_ASSERTIONS_ON
-    // Bail on the text selection loupe for standard UIKit controls. Not our problem.
-    if ([self isKindOfClass:NSClassFromString(@"UITextRangeView")] ||
-        [otherView isKindOfClass:NSClassFromString(@"UITextRangeView")])
-        return YES;
-#endif
-    
     // "Otherwise, both view and the receiver must belong to the same UIWindow object."
     // We just require that they have a common ancestor view, though.
     UIView *root1 = _rootView(self);
@@ -117,24 +110,21 @@ static void OUIViewPerformPosing(void)
 
 #endif
 
-- (UIImage *)snapshotImageWithSize:(CGSize)imageSize;
+- (UIImage *)snapshotImageWithScale:(CGFloat)scale;
 {
-    OBPRECONDITION(imageSize.width >= 1);
-    OBPRECONDITION(imageSize.height >= 1);
-    
     [self layoutIfNeeded];
     
     UIImage *image;
     
     CGRect bounds = self.bounds;
-    OBASSERT(bounds.size.width >= 1);
-    OBASSERT(bounds.size.height >= 1);
+    CGSize imageSize = CGSizeMake(ceil(bounds.size.width * scale),
+                                  ceil(bounds.size.height * scale));
     
     OUIGraphicsBeginImageContext(imageSize);
     {
         CGContextRef ctx = UIGraphicsGetCurrentContext();
         CGContextTranslateCTM(ctx, -bounds.origin.x, -bounds.origin.y);
-        CGContextScaleCTM(ctx, imageSize.width / bounds.size.width, imageSize.height / bounds.size.height);
+        CGContextScaleCTM(ctx, scale, scale);
         
         [[self layer] renderInContext:ctx];
         
@@ -145,15 +135,6 @@ static void OUIViewPerformPosing(void)
     return image;
 }
 
-- (UIImage *)snapshotImageWithScale:(CGFloat)scale;
-{
-    CGRect bounds = self.bounds;
-    CGSize imageSize = CGSizeMake(ceil(bounds.size.width * scale),
-                                  ceil(bounds.size.height * scale));
-    
-    return [self snapshotImageWithSize:imageSize];
-}
-
 - (UIImage *)snapshotImage;
 {
     return [self snapshotImageWithScale:1.0];
@@ -161,21 +142,9 @@ static void OUIViewPerformPosing(void)
 
 - (id)containingViewOfClass:(Class)cls; // can return self
 {
-    return [self containingViewMatching:^(id view){
-        return [view isKindOfClass:cls];
-    }];
-}
-
-- (id)containingViewMatching:(OFPredicateBlock)predicate;
-{
-    if (!predicate) {
-        OBASSERT_NOT_REACHED("Treating nil predicate as true... probably not that useful");
-        return self;
-    }
-    
     UIView *view = self;
     while (view) {
-        if (predicate(view))
+        if ([view isKindOfClass:cls])
             return view;
         view = view.superview;
     }
@@ -349,9 +318,7 @@ static void _addShadowEdge(UIView *self, const OUILoadedImage *imageInfo, NSMuta
     edge.layer.needsDisplayOnBoundsChange = NO;
     [self addSubview:edge];
     
-    UIImage *image = imageInfo->image;
-    edge.layer.contents = (id)[image CGImage];
-    edge.layer.contentsScale = [image scale];
+    edge.layer.contents = (id)[imageInfo->image CGImage];
     
     // Exactly one dimension should have an odd pixel count. This center column or row will get stretched via the contentsCenter property on the layer.
 #ifdef OMNI_ASSERTIONS_ON
@@ -488,26 +455,14 @@ void OUIWithoutAnimating(void (^actions)(void))
     }
 }
 
-void OUIWithoutLayersAnimating(void (^actions)(void))
-{
-    [CATransaction begin];
-    [CATransaction setValue:(id)kCFBooleanTrue forKey:kCATransactionDisableActions];
-    actions();
-    [CATransaction commit];
-}
-
-void OUIWithLayerAnimationsDisabled(BOOL disabled, void (^actions)(void))
-{
-    if (disabled)
-        OUIWithoutLayersAnimating(actions);
-    else
-        actions();
-}
-
 void OUIWithAppropriateLayerAnimations(void (^actions)(void))
 {
     BOOL shouldAnimate = [UIView areAnimationsEnabled];
-    OUIWithLayerAnimationsDisabled(shouldAnimate == NO, actions);
+    
+    [CATransaction begin];
+    [CATransaction setValue:shouldAnimate ? (id)kCFBooleanFalse : (id)kCFBooleanTrue forKey:kCATransactionDisableActions];
+    actions();
+    [CATransaction commit];
 }
 
 // A (hopefully) rarely needed hack, given a name here to make it a bit more clear what is happening.

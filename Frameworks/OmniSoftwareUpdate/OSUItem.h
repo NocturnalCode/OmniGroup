@@ -1,4 +1,4 @@
-// Copyright 2007-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2007-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -28,8 +28,6 @@ enum OSUTrackComparison {
 
 #define OSUTrackInformationChangedNotification (@"OSUTrackInfoChanged")
 
-__private_extern__ BOOL OSUItemDebug;
-
 @interface OSUItem : OFObject
 {
     OFVersionNumber *_buildVersion;
@@ -41,7 +39,6 @@ __private_extern__ BOOL OSUItemDebug;
     
     NSDecimalNumber *_price;
     NSString *_currencyCode;
-    NSNumberFormatter *_priceFormatter; // Cached
     
     NSURL *_releaseNotesURL;
     NSURL *_downloadURL;
@@ -55,14 +52,11 @@ __private_extern__ BOOL OSUItemDebug;
     BOOL _superseded;
     // Ignored: Has the user chosen not to see this item (or the track it's on)?
     BOOL _ignored;
-    // OldStable: Is this older than the current version, but more stable than it?
-    BOOL _olderStable;
 }
 
 + (void)setSupersededFlagForItems:(NSArray *)items;
 + (NSPredicate *)availableAndNotSupersededPredicate;
-+ (NSPredicate *)availableAndNotSupersededIgnoredOrOldPredicate;
-+ (NSPredicate *)availableOldStablePredicate;
++ (NSPredicate *)availableAndNotSupersededOrIgnoredPredicate;
 
 + (enum OSUTrackComparison)compareTrack:(NSString *)aTrack toTrack:(NSString *)otherTrack;
 + (NSArray *)dominantTracks:(id <NSFastEnumeration>)someTracks;
@@ -89,15 +83,13 @@ __private_extern__ BOOL OSUItemDebug;
 
 @property (readonly,nonatomic) NSNumber *price;
 @property (readonly,nonatomic) BOOL isFree;
-@property (readonly,nonatomic) NSString *priceString;
-- (NSDictionary *)priceAttributesForStyle:(NSBackgroundStyle)cellStyle;
+@property (readonly,nonatomic) NSAttributedString *priceAttributedString;
 
 @property (readwrite,nonatomic) BOOL available;
 - (void)setAvailablityBasedOnSystemVersion:(OFVersionNumber *)systemVersion;
 @property (readonly,nonatomic) BOOL isIgnored;
 @property (readwrite,nonatomic) BOOL superseded;
-- (BOOL)supersedesItem:(OSUItem *)peer;
-@property (readwrite,nonatomic) BOOL isOldStable;
+- (BOOL)supersedes:(OSUItem *)peer;
 
 - (NSString *)verifyFile:(NSString *)local;
 

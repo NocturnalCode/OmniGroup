@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -80,26 +80,20 @@ NSString * const OUIInspectorWillBeginChangingInspectedObjectsNotification = @"O
 NSString * const OUIInspectorDidEndChangingInspectedObjectsNotification = @"OUIInspectorDidEndChangingInspectedObjectsNotification";
 
 @implementation OUIInspector
-{
-    // We hold onto this in case we don't have a _navigationController to retain it on our behalf (if we have -isEmbededInOtherNavigationController subclassed to return YES).
-    OUIInspectorPane *_mainPane;
-    CGFloat _height;
-    BOOL _alwaysShowToolbar;
-    
-    UINavigationController *_navigationController;
-    OUIInspectorPopoverController *_popoverController;
-    
-    id <OUIInspectorDelegate> _nonretained_delegate;
-    
-    BOOL _isObservingNotifications;
-    BOOL _keyboardShownWhilePopoverVisible;
-}
 
 + (UIBarButtonItem *)inspectorBarButtonItemWithTarget:(id)target action:(SEL)action;
 {
     UIImage *image = [UIImage imageNamed:@"OUIToolbarInfo.png"];
     OBASSERT(image);
+
+    // Noticed that the inspector image wasn't quite lined up with the buttons around it so I moved it down 2 px. Maybe this should have been done in the png?
     UIBarButtonItem *item = [[[UIBarButtonItem alloc] initWithImage:image style:UIBarButtonItemStylePlain target:target action:action] autorelease];
+    item.imageInsets = (UIEdgeInsets){
+        .top = 2,
+        .right = 0,
+        .bottom = -2,
+        .left = 0
+    };
     return item;
 }
 
@@ -116,11 +110,6 @@ NSString * const OUIInspectorDidEndChangingInspectedObjectsNotification = @"OUII
 + (UIFont *)labelFont;
 {
     return [UIFont boldSystemFontOfSize:20];
-}
-
-+ (UIColor *)valueTextColor;
-{
-    return [UIColor colorWithHue:kOUIInspectorLabelTextColor.h saturation:kOUIInspectorLabelTextColor.s brightness:kOUIInspectorLabelTextColor.v alpha:kOUIInspectorLabelTextColor.a];
 }
 
 - init;
@@ -180,7 +169,6 @@ NSString * const OUIInspectorDidEndChangingInspectedObjectsNotification = @"OUII
 
 @synthesize height = _height;
 @synthesize delegate = _nonretained_delegate;
-@synthesize alwaysShowToolbar = _alwaysShowToolbar;
 
 // Subclass to return YES if you intend to embed the inspector into a your own navigation controller.
 - (BOOL)isEmbededInOtherNavigationController;
@@ -274,7 +262,7 @@ static void _configureContentSize(OUIInspector *self, UIViewController *vc, CGFl
 {
     const CGFloat toolbarHeight = 38;
 
-    BOOL wantsToolbar = self->_alwaysShowToolbar || ([vc.toolbarItems count] > 0);
+    BOOL wantsToolbar = ([[vc toolbarItems] count] > 0);
     if (wantsToolbar)
         height -= toolbarHeight;
     
@@ -339,8 +327,6 @@ static void _configureContentSize(OUIInspector *self, UIViewController *vc, CGFl
 
 - (void)willBeginChangingInspectedObjects;
 {
-    [self.topVisiblePane.view endEditing:YES];
-    
     [[NSNotificationCenter defaultCenter] postNotificationName:OUIInspectorWillBeginChangingInspectedObjectsNotification object:self];
 }
 
@@ -400,16 +386,11 @@ static void _configureContentSize(OUIInspector *self, UIViewController *vc, CGFl
 
 - (void)popoverControllerDidDismissPopover:(UIPopoverController *)popoverController;
 {
-    OBPRECONDITION(_popoverController == popoverController);
-    
     // NOTE: This method gets called when the dismisal animation starts, not when it is done. So, we defer clearing the inspected objects/views/slices until our UINavigationController's -viewDidDisappear:. Otherwise we'll animate out an empty background.
     
     [self _stopObserving];
 
     [_nonretained_delegate inspectorDidDismiss:self];
-    
-    // Don't keep the popover controller alive needlessly.
-    [[OUIAppController controller] forgetPossiblyVisiblePopoverIfAlreadyHidden];
 }
 
 #pragma mark -
@@ -436,41 +417,37 @@ static void _configureContentSize(OUIInspector *self, UIViewController *vc, CGFl
     OBPRECONDITION(_mainPane);
     
     BOOL embedded = [self isEmbededInOtherNavigationController];
-    BOOL visible = _popoverController.isPopoverVisible;
     
-
-    if (embedded == NO && visible) {
+    if (embedded == NO && _popoverController.isPopoverVisible) {
         [self dismissAnimated:YES]; // Like iWork, pop inspectors in, but fade them out.
         return NO;
     }
     
-    OUIWithAnimationsDisabled(!visible, ^{
-        _mainPane.inspectedObjects = objects;
+    _mainPane.inspectedObjects = objects;
+    
+    [self _configureTitleForPane:_mainPane];
+    
+    [self updateInterfaceFromInspectedObjects:OUIInspectorUpdateReasonDefault];
+    
+    // We *MUST* reuse our popover currently. In the past we've not been able to reuse them due to sizing oddities, but we no longer resize our popovers. Also, since we can potentially reuse our panes/slices, if you open an inspector, then quickly tap it closed and reopen, the old popover could not be done animating out before the new one tried to steal the panes/slices. This left them in a confused state. This all seems to work fine if we reuse our popover. See <bug:///71345> (Tapping between the two popover quickly can give you a blank inspector).
+    if (embedded == NO) {
+        // TODO: Assuming we aren't on screen.
+        [_navigationController popToRootViewControllerAnimated:NO];
         
-        [self _configureTitleForPane:_mainPane];
+        [self dismiss];
         
-        [self updateInterfaceFromInspectedObjects:OUIInspectorUpdateReasonDefault];
+        // The popover controller will read the nav controller's contentSizeForViewInPopover as soon as it is created (and it will read the top view controller's)
+        _configureContentSize(self, _mainPane, _height, NO);
         
-        // We *MUST* reuse our popover currently. In the past we've not been able to reuse them due to sizing oddities, but we no longer resize our popovers. Also, since we can potentially reuse our panes/slices, if you open an inspector, then quickly tap it closed and reopen, the old popover could not be done animating out before the new one tried to steal the panes/slices. This left them in a confused state. This all seems to work fine if we reuse our popover. See <bug:///71345> (Tapping between the two popover quickly can give you a blank inspector).
-        if (embedded == NO) {
-            // TODO: Assuming we aren't on screen.
-            [_navigationController popToRootViewControllerAnimated:NO];
-            
-            [self dismiss];
-            
-            // The popover controller will read the nav controller's contentSizeForViewInPopover as soon as it is created (and it will read the top view controller's)
-            _configureContentSize(self, _mainPane, _height, NO);
-            
-            if (_popoverController == nil) {
-                _popoverController = [[OUIInspectorPopoverController alloc] initWithContentViewController:_navigationController];
-                _popoverController.delegate = self;
-            }
-            
-            [self _startObserving]; // Inside the embedded check since this just signs up for notifications that will fix our popover size, but that isn't our problem if we are embedded
-        } else {
-            OBASSERT(_navigationController == nil);
+        if (_popoverController == nil) {
+            _popoverController = [[OUIInspectorPopoverController alloc] initWithContentViewController:_navigationController];
+            _popoverController.delegate = self;
         }
-    });
+         
+        [self _startObserving]; // Inside the embedded check since this just signs up for notifications that will fix our popover size, but that isn't our problem if we are embedded
+    } else {
+        OBASSERT(_navigationController == nil);
+    }
 
     return YES;
 }

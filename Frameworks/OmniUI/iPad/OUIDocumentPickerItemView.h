@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -9,12 +9,9 @@
 
 #import <UIKit/UIView.h>
 
-#import <OmniUI/OUIDocumentPickerItemViewTapArea.h>
-
 extern NSString * const OUIDocumentPickerItemViewPreviewsDidLoadNotification;
 
-@class UITapGestureRecognizer;
-@class OFSDocumentStoreItem;
+@class OUIDocumentStoreItem;
 
 typedef enum {
     OUIDocumentPickerItemViewNoneDraggingState,
@@ -28,10 +25,9 @@ typedef enum {
 @interface OUIDocumentPickerItemView : UIView
 
 @property(assign,nonatomic) BOOL landscape;
-@property(nonatomic,assign) BOOL ubiquityEnabled;
-@property(retain,nonatomic) OFSDocumentStoreItem *item; // either a file or group
+@property(retain,nonatomic) OUIDocumentStoreItem *item; // either a file or group
 
-@property(assign,nonatomic) BOOL animatingRotationChange;
+@property(readonly,nonatomic,getter=isLoadingPreviews) BOOL loadingPreviews;
 
 @property(assign,nonatomic) OUIDocumentPickerItemViewDraggingState draggingState;
 
@@ -40,7 +36,5 @@ typedef enum {
 - (void)setEditing:(BOOL)editing animated:(BOOL)animated;
 
 - (void)prepareForReuse;
-
-- (BOOL)getHitTapArea:(OUIDocumentPickerItemViewTapArea *)outTapArea withRecognizer:(UITapGestureRecognizer *)recognizer;
 
 @end

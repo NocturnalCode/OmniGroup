@@ -1,4 +1,4 @@
-// Copyright 1999-2008, 2010-2012 Omni Development, Inc.  All rights reserved.
+// Copyright 1999-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -27,7 +27,7 @@ RCS_ID("$Id$")
         return self;
     
     // 0x2014 is emdash (this is more efficient than calling +emdashString and also means we don't have to pull in OFExtensions for iOS)
-    return [NSString stringWithFormat: @"%@ %C %@", last, (unichar)0x2014, prefix];
+    return [NSString stringWithFormat: @"%@ %d %@", last, 0x2014, prefix];
 }
 
 + (NSString *)pathSeparator;
@@ -117,25 +117,6 @@ NSArray *OFCommonRootPathComponents(NSString *filename, NSString *otherFilename,
     }
     
     return [NSMakeCollectable(hfsPath) autorelease];
-}
-
-- (void)splitName:(NSString **)outName andCounter:(NSUInteger *)outCounter;
-{
-    NSString *name = self;
-    NSUInteger counter = 0;
-    NSRange notNumberRange = [name rangeOfCharacterFromSet:[[NSCharacterSet decimalDigitCharacterSet] invertedSet] options:NSBackwardsSearch];
-    
-    // Has at least one digit at the end and isn't all digits?
-    if (notNumberRange.length > 0 && NSMaxRange(notNumberRange) < [name length]) {
-        // Is there a space before the digits?
-        if ([name characterAtIndex:NSMaxRange(notNumberRange) - 1] == ' ') {
-            counter = [[name substringFromIndex:NSMaxRange(notNumberRange)] intValue];
-            name = [name substringToIndex:NSMaxRange(notNumberRange) - 1];
-        }
-    }
-    
-    *outName = name;
-    *outCounter = counter;
 }
 
 @end

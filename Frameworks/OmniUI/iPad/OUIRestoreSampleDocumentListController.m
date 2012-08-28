@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -7,10 +7,10 @@
 
 #import "OUIRestoreSampleDocumentListController.h"
 
-#import <OmniFileStore/OFSDocumentStore.h>
 #import <OmniUI/OUISingleDocumentAppController.h>
 #import <OmniUI/OUIDocumentPicker.h>
 #import <OmniUI/OUIBarButtonItem.h>
+#import <OmniUI/OUIDocumentStore.h>
 
 #import <OmniFileStore/OFSFileManager.h>
 #import <OmniFileStore/OFSFileInfo.h>
@@ -24,11 +24,6 @@ RCS_ID("$Id$");
     [self.navigationController dismissModalViewControllerAnimated:YES];
 }
 
-- (NSString *)localizedNameForFileName:(NSString *)fileName;
-{
-    return [[OUISingleDocumentAppController controller] localizedNameForSampleDocumentNamed:fileName];
-}
-
 #pragma mark -
 #pragma mark UIViewController
 
@@ -36,7 +31,7 @@ RCS_ID("$Id$");
 {
     [super viewDidLoad];
     
-    self.navigationItem.title = [[OUISingleDocumentAppController controller] sampleDocumentsDirectoryTitle];
+    self.navigationItem.title = NSLocalizedStringFromTableInBundle(@"Restore Sample Document", @"OmniUI", OMNI_BUNDLE, @"Restore Sample Document Title");
     
     UIBarButtonItem *cancel = [[OUIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemCancel target:self action:@selector(cancel:)];
     self.navigationItem.leftBarButtonItem = cancel;
@@ -57,19 +52,7 @@ RCS_ID("$Id$");
         OUI_PRESENT_ERROR(error);
         return;
     }
-    
-    sampleFiles = [sampleFiles sortedArrayUsingComparator:^(OFSFileInfo *fileInfo1, OFSFileInfo *fileInfo2) {
-        NSString *fileInfo1LocalizedName = [self localizedNameForFileName:[[fileInfo1 name] stringByDeletingPathExtension]];
-        if (!fileInfo1LocalizedName)
-            fileInfo1LocalizedName = [[fileInfo1 name] stringByDeletingPathExtension];
-        
-        NSString *fileInfo2LocalizedName = [self localizedNameForFileName:[[fileInfo2 name] stringByDeletingPathExtension]];
-        if (!fileInfo2LocalizedName)
-            fileInfo2LocalizedName = [[fileInfo2 name] stringByDeletingPathExtension];
-        
-        return [fileInfo1LocalizedName compare:fileInfo2LocalizedName];
-    }];
-    
+
     self.files = sampleFiles;
 }
 
@@ -77,10 +60,46 @@ RCS_ID("$Id$");
 #pragma mark UITableViewDeletage
 - (void)tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath;
 {
-    // Get fileInfo
+    // Get Source Path
+    NSURL *sampleDocumentsDirectoryURL = [[OUISingleDocumentAppController controller] sampleDocumentsDirectoryURL];
     OFSFileInfo *fileInfo = [self.files objectAtIndex:indexPath.row];
+    BOOL isDirectory = [fileInfo isDirectory];
+    NSString *fileName = [fileInfo name];
+    NSURL *sampleDocumentURL = [sampleDocumentsDirectoryURL URLByAppendingPathComponent:fileName isDirectory:isDirectory];
     
-    [[[OUISingleDocumentAppController controller] documentPicker] addSampleDocumentFromURL:[fileInfo originalURL]];
+    // Get Dest Path
+    NSString *tempDirectory = NSTemporaryDirectory();
+    NSString *tempPath = [tempDirectory stringByAppendingPathComponent:fileName];
+    NSURL *tempURL = [NSURL fileURLWithPath:tempPath isDirectory:isDirectory];
+    
+    
+    // Delete tempPath if it exists.
+    NSError *error = nil;
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if ([fileManager fileExistsAtPath:tempPath]) {
+        if (![fileManager removeItemAtPath:tempPath error:&error]) {
+            OUI_PRESENT_ERROR(error);
+            return;
+        }
+    }
+    
+    // Should be able to copy sample doc to temp dir now.
+    if (![fileManager copyItemAtURL:sampleDocumentURL toURL:tempURL error:&error]) {
+        OUI_PRESENT_ERROR(error);
+        return;
+    }
+    
+    if (![fileManager setAttributes:[NSDictionary dictionaryWithObject:[NSDate date]
+                                                           forKey:NSFileModificationDate] 
+                       ofItemAtPath:tempPath 
+                              error:&error]) {
+        OUI_PRESENT_ERROR(error);
+        return;
+    }
+    
+    OUIAppController *appController = [OUIAppController controller];
+    OUIDocumentPicker *documentPicker = appController.documentPicker;
+    [documentPicker addDocumentFromURL:tempURL];
     
     [self dismissModalViewControllerAnimated:YES];
 }

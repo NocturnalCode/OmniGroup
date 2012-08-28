@@ -1,4 +1,4 @@
-// Copyright 2002-2007, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2002-2007, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -13,7 +13,7 @@
 #import <OmniAppKit/NSWindow-OAExtensions.h>
 #import <OmniAppKit/OAColorWell.h>
 
-#import "OIInspectorController-Internal.h"
+#import "OIInspectorController.h"
 #import "OIInspectorRegistry.h"
 #import "OIInspector.h"
 
@@ -119,7 +119,7 @@ static NSComparisonResult sortGroupByGroupNumber(OIInspectorGroup *a, OIInspecto
     NSMutableDictionary *inspectorById = [NSMutableDictionary dictionary];
     
     // Obsolete name of a method, make sure nobody's trying to override it
-    OBASSERT_NOT_IMPLEMENTED(self, _adjustTopLeftDefaultPositioningPoint:);
+    OBASSERT(![self respondsToSelector:@selector(_adjustTopLeftDefaultPositioningPoint:)]);
     
     [self clearAllGroups];
     [self updateMenuForControllers:inspectorList];
@@ -251,11 +251,8 @@ static NSComparisonResult sortGroupByGroupNumber(OIInspectorGroup *a, OIInspecto
 
 static NSComparisonResult sortGroupByWindowZOrder(OIInspectorGroup *a, OIInspectorGroup *b, void *zOrder)
 {
-    OIInspectorController *inspectorA = [[a inspectors] objectAtIndex:0];
-    OIInspectorController *inspectorB = [[b inspectors] objectAtIndex:0];
-    
-    NSUInteger aOrder = [(NSArray *)zOrder indexOfObject:[inspectorA window]];
-    NSUInteger bOrder = [(NSArray *)zOrder indexOfObject:[inspectorB window]];
+    NSUInteger aOrder = [(NSArray *)zOrder indexOfObject:[[[a inspectors] objectAtIndex:0] window]];
+    NSUInteger bOrder = [(NSArray *)zOrder indexOfObject:[[[b inspectors] objectAtIndex:0] window]];
 
     // opposite order as in original zOrder array
     if (aOrder > bOrder)
@@ -361,8 +358,7 @@ This method iterates over the inspectors controllers in each visible inspector g
 {
     // make sure group is visible on screen
     [self screensDidChange:nil];
-    
-    [[(OIInspectorController *)[_inspectors objectAtIndex:0] window] orderFront:self];
+    [[[_inspectors objectAtIndex:0] window] orderFront:self];
 }
 
 - (void)addInspector:(OIInspectorController *)aController;
@@ -410,8 +406,6 @@ This method iterates over the inspectors controllers in each visible inspector g
         [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowDidResizeNotification object:[inspectorController window]];
         [_resizingInspector release];
         _resizingInspector = nil;
-        
-        [[OIInspectorRegistry sharedInspector] configurationsChanged];
     }
 }
 
@@ -426,7 +420,7 @@ This method iterates over the inspectors controllers in each visible inspector g
     _inspectorGroupFlags.ignoreResizing = NO;
 
 #ifdef OMNI_ASSERTIONS_ON
-    NSWindow *topWindow = [(OIInspectorController *)[_inspectors objectAtIndex:0] window];
+    NSWindow *topWindow = [[_inspectors objectAtIndex:0] window];
 #endif
     OIInspectorGroup *newGroup = [[[OIInspectorGroup alloc] init] autorelease];
     OBASSERT([existingGroups indexOfObjectIdenticalTo:newGroup]); // It is in this array and retained by it.
@@ -496,7 +490,7 @@ This method iterates over the inspectors controllers in each visible inspector g
     if (_inspectorGroupFlags.isShowing)
         return YES;
     else
-        return [[(OIInspectorController *)[_inspectors objectAtIndex:0] window] isVisible];
+        return [[[_inspectors objectAtIndex:0] window] isVisible];
 }
 
 - (BOOL)isBelowOverlappingGroup;
@@ -588,12 +582,12 @@ This method iterates over the inspectors controllers in each visible inspector g
 
 - (void)setTopLeftPoint:(NSPoint)aPoint;
 {
-    NSWindow *topWindow = [(OIInspectorController *)[_inspectors objectAtIndex:0] window];
+    NSWindow *topWindow = [[_inspectors objectAtIndex:0] window];
     NSUInteger index, count = [_inspectors count];
 
     [topWindow setFrameTopLeftPoint:aPoint];
     for (index = 1; index < count; index++) {
-        NSWindow *bottomWindow = [(OIInspectorController *)[_inspectors objectAtIndex:index] window];
+        NSWindow *bottomWindow = [[_inspectors objectAtIndex:index] window];
         
         [bottomWindow setFrameTopLeftPoint:[topWindow frame].origin];
         topWindow = bottomWindow;
@@ -755,14 +749,21 @@ This method iterates over the inspectors controllers in each visible inspector g
     return result;
 }
 
-#pragma mark - Internal
+#pragma mark -
+#pragma mark Private
+
+- (void)_hideGroup;
+{
+    [self disconnectWindows];
+    
+    for (OIInspectorController *inspector in _inspectors) {
+        OBASSERT([[inspector window] isReleasedWhenClosed] == NO);
+        [[inspector window] close];
+    }
+}
 
 - (void)_showGroup;
 {
-    OBASSERT([_inspectors count]);
-    if (![_inspectors count])
-        return;
-    
     NSUInteger index, count = [_inspectors count];
 
     _inspectorGroupFlags.isShowing = YES;
@@ -807,32 +808,16 @@ This method iterates over the inspectors controllers in each visible inspector g
     
     [self connectWindows];
     _inspectorGroupFlags.isShowing = NO;
-
-    [[OIInspectorRegistry sharedInspector] configurationsChanged];
-}
-
-#pragma mark - Private
-
-- (void)_hideGroup;
-{
-    [self disconnectWindows];
-    
-    for (OIInspectorController *inspector in _inspectors) {
-        OBASSERT([[inspector window] isReleasedWhenClosed] == NO);
-        [[inspector window] close];
-    }
-    
-    [[OIInspectorRegistry sharedInspector] configurationsChanged];
 }
 
 - (void)disconnectWindows;
 {
-    NSWindow *topWindow = [(OIInspectorController *)[_inspectors objectAtIndex:0] window];
+    NSWindow *topWindow = [[_inspectors objectAtIndex:0] window];
     NSUInteger index = [_inspectors count];
     
     OBPRECONDITION(!topWindow || ([[topWindow childWindows] count] == index-1));
     while (index-- > 1) 
-        [topWindow removeChildWindow:[(OIInspectorController *)[_inspectors objectAtIndex:index] window]];
+        [topWindow removeChildWindow:[[_inspectors objectAtIndex:index] window]];
         
     OBPOSTCONDITION([[topWindow childWindows] count] == 0);
 }
@@ -840,7 +825,7 @@ This method iterates over the inspectors controllers in each visible inspector g
 - (void)connectWindows;
 {
     NSUInteger index, count = [_inspectors count];
-    NSWindow *topWindow = [(OIInspectorController *)[_inspectors objectAtIndex:0] window];
+    NSWindow *topWindow = [[_inspectors objectAtIndex:0] window];
     NSWindow *lastWindow = topWindow;
     
     if (![topWindow isVisible])
@@ -848,7 +833,7 @@ This method iterates over the inspectors controllers in each visible inspector g
     
     OBPRECONDITION([[topWindow childWindows] count] == 0);
     for (index = 1; index < count; index++) {
-        NSWindow *window = [(OIInspectorController *)[_inspectors objectAtIndex:index] window];
+        NSWindow *window = [[_inspectors objectAtIndex:index] window];
         
         [window orderWindow:NSWindowAbove relativeTo:[lastWindow windowNumber]];
         [topWindow addChildWindow:window ordered:NSWindowAbove];
@@ -863,7 +848,7 @@ This method iterates over the inspectors controllers in each visible inspector g
 
 - (BOOL)hasFirstFrame;
 {
-    return [(OIInspectorController *)[_inspectors objectAtIndex:0] window] != nil;
+    return [[_inspectors objectAtIndex:0] window] != nil;
 }
 
 - (NSPoint)topLeftPoint;
@@ -874,7 +859,7 @@ This method iterates over the inspectors controllers in each visible inspector g
 
 - (NSRect)firstFrame;
 {
-    NSWindow *window = [(OIInspectorController *)[_inspectors objectAtIndex:0] window];
+    NSWindow *window = [[_inspectors objectAtIndex:0] window];
     OBASSERT(window);
 
     return window ? [window frame] : NSZeroRect;
@@ -889,7 +874,7 @@ This method iterates over the inspectors controllers in each visible inspector g
     if (![self getGroupFrame:&groupRect])
         return;
     
-    NSScreen *screen = [[(OIInspectorController *)[_inspectors objectAtIndex:0] window] screen];
+    NSScreen *screen = [[[_inspectors objectAtIndex:0] window] screen];
     
     if (screen == nil) 
         screen = [NSScreen mainScreen];
@@ -963,7 +948,7 @@ This method iterates over the inspectors controllers in each visible inspector g
     
     insertionPosition = NSMaxY(aFrame) - (OIInspectorStartingHeaderButtonHeight / 2);
     
-    inspectorBreakpoint = NSMaxY(groupFrame) - NSHeight([[(OIInspectorController *)[_inspectors objectAtIndex:0] window] frame]);
+    inspectorBreakpoint = NSMaxY(groupFrame) - NSHeight([[[_inspectors objectAtIndex:0] window] frame]);
     NSUInteger index, count = [_inspectors count];
     for (index = 1; index < count; index++) {
         if (ABS(inspectorBreakpoint - insertionPosition) <= INSERTION_CLOSENESS) {
@@ -973,7 +958,7 @@ This method iterates over the inspectors controllers in each visible inspector g
                 *aPosition = inspectorBreakpoint;
             return YES;
         }
-        inspectorBreakpoint -= NSHeight([[(OIInspectorController *)[_inspectors objectAtIndex:index] window] frame]);
+        inspectorBreakpoint -= NSHeight([[[_inspectors objectAtIndex:index] window] frame]);
     }    
     return NO;    
 }
@@ -1086,7 +1071,7 @@ This method iterates over the inspectors controllers in each visible inspector g
     if (_inspectorGroupFlags.ignoreResizing)
         return aFrame;
 
-    NSWindow *firstWindow = [(OIInspectorController *)[_inspectors objectAtIndex:0] window];
+    NSWindow *firstWindow = [[_inspectors objectAtIndex:0] window];
     NSRect firstWindowFrame = [firstWindow frame];
     NSRect returnValue = aFrame;
     NSPoint topLeft;
@@ -1138,7 +1123,7 @@ This method iterates over the inspectors controllers in each visible inspector g
 {
     NSRect firstFrame = [self firstFrame];
     NSUInteger index = [existingGroups count];
-    CGFloat result = NSMinY([[[(OIInspectorController *)[_inspectors objectAtIndex:0] window] screen] visibleFrame]);
+    CGFloat result = NSMinY([[[[_inspectors objectAtIndex:0] window] screen] visibleFrame]);
     CGFloat ignoreAbove = (NSMaxY(firstFrame) - ((CGFloat)([_inspectors count] - 1) * OIInspectorStartingHeaderButtonHeight) - singleControllerHeight);
     
     while (index--) {

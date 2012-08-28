@@ -1,4 +1,4 @@
-// Copyright 2007, 2012 Omni Development, Inc. All rights reserved.
+// Copyright 2007 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -8,12 +8,9 @@
 #import "OATextFieldBinder.h"
 
 #import <OmniBase/OmniBase.h>
-#import <OmniFoundation/NSKeyValueObserving-OFExtensions.h> // For HAS_REMOVEOBSERVER_FORKEYPATH_CONTEXT
 #import <AppKit/AppKit.h>
 
 RCS_ID("$Id$");
-
-static unsigned int _OATextFieldBinderObservationContext;
 
 @implementation OATextFieldBinder
 
@@ -26,16 +23,13 @@ static unsigned int _OATextFieldBinderObservationContext;
     else {
         shouldBeObserving = YES;
     }
-
+    
+    
     if (observing && !shouldBeObserving) {
-#if HAS_REMOVEOBSERVER_FORKEYPATH_CONTEXT
-        [subject removeObserver:self forKeyPath:keyPath context:&_OATextFieldBinderObservationContext];
-#else
         [subject removeObserver:self forKeyPath:keyPath];
-#endif
         observing = NO;
     } else if (!observing && shouldBeObserving) {
-        [subject addObserver:self forKeyPath:keyPath options:NSKeyValueObservingOptionNew context:&_OATextFieldBinderObservationContext];
+        [subject addObserver:self forKeyPath:keyPath options:NSKeyValueObservingOptionNew context:NULL];
         observing = YES;
     }
 }
@@ -105,21 +99,17 @@ static unsigned int _OATextFieldBinderObservationContext;
 
 - (void)observeValueForKeyPath:(NSString *)observedKeyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
-    if (context == &_OATextFieldBinderObservationContext) {
-        //NSLog(@"%@ observingValue begin %@", OBShortObjectDescription(self), [change description]);
-        if (object == subject && [observedKeyPath isEqualToString:keyPath]) {
-            if (settingValue && [boundField currentEditor]) {
-                // do nothing.
-            } else {
-                [boundField setObjectValue:[change objectForKey:NSKeyValueChangeNewKey]];
-            }
+    //NSLog(@"%@ observingValue begin %@", OBShortObjectDescription(self), [change description]);
+    if (object == subject && [observedKeyPath isEqualToString:keyPath]) {
+        if (settingValue && [boundField currentEditor]) {
+            // do nothing.
         } else {
-            OBASSERT_NOT_REACHED("Unexpected KVO message received");
+            [boundField setObjectValue:[change objectForKey:NSKeyValueChangeNewKey]];
         }
-        //NSLog(@"%@ observingValue end", OBShortObjectDescription(self));
     } else {
-        [super observeValueForKeyPath:observedKeyPath ofObject:object change:change context:context];
+        OBASSERT_NOT_REACHED("Unexpected KVO message received");
     }
+    //NSLog(@"%@ observingValue end", OBShortObjectDescription(self));
 }
 
 

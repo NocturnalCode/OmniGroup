@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -53,13 +53,12 @@
     UIEdgeInsets _currentTextInset;
     UITextGranularity tapSelectionGranularity;
     BOOL _autoCorrectDoubleSpaceToPeriodAtSentenceEnd;
-    UIView *_inputView;
-    UIView *_inputAccessoryView;
     
     UITextAutocorrectionType _autocorrectionType;
     UITextAutocapitalizationType _autocapitalizationType;
+#if defined(__IPHONE_5_0) && (__IPHONE_5_0 <= __IPHONE_OS_VERSION_MAX_ALLOWED)
     UITextSpellCheckingType _spellCheckingType;
-    UIReturnKeyType _returnKeyType;
+#endif
     UIKeyboardType _keyboardType;
     
     /* The cached typeset frame. */
@@ -115,7 +114,7 @@
     
     BOOL isRegisteredForScrollNotifications; // Just used for assertions that we're following the registration protocol.
     
-    OUIEditMenuController *_editMenuController;
+    OUIEditMenuController *editMenu;
 
 @protected
     /* A system-provided input delegate is assigned when the system is interested in input changes. */
@@ -128,7 +127,6 @@
 
 @property (nonatomic, readonly) OUEFTextRange *selection;
 @property (nonatomic, readwrite, retain) UIColor *selectionColor;
-@property (nonatomic, readwrite, retain) UIColor *selectedRangeColor;
 @property (nonatomic, copy) NSDictionary *typingAttributes;
 @property (nonatomic, copy) NSAttributedString *attributedText;
 @property (nonatomic, assign) id <OUIEditableFrameDelegate> delegate;
@@ -141,7 +139,6 @@
 @property (nonatomic, readonly) CGSize viewUsedSize; // Same as -textUsedSpace, but accounting for effective scale to UIView space.
 @property (nonatomic, assign) BOOL shouldTryToCenterFirstLine;
 @property (nonatomic, assign) CGFloat firstLineCenterTarget;
-@property (nonatomic, readonly) CGFloat firstLineAscent;
 
 - (BOOL)endEditing;
 
@@ -154,12 +151,10 @@
 @property (nonatomic) BOOL autoCorrectDoubleSpaceToPeriodAtSentenceEnd;
 @property (nonatomic) UITextAutocorrectionType autocorrectionType;  // defaults to UITextAutocorrectionTypeNo
 @property (nonatomic) UITextAutocapitalizationType autocapitalizationType; // defaults to UITextAutocapitalizationTypeNone
+#if defined(__IPHONE_5_0) && (__IPHONE_5_0 <= __IPHONE_OS_VERSION_MAX_ALLOWED)
 @property (nonatomic) UITextSpellCheckingType spellCheckingType; // default is UITextSpellCheckingTypeDefault;
-@property (nonatomic) UIReturnKeyType returnKeyType; // default is UIReturnKeyDefault;
+#endif
 @property (nonatomic) UITextGranularity tapSelectionGranularity;
-
-@property (nonatomic, readwrite, retain) UIView *inputView;
-@property (nonatomic, readwrite, retain) UIView *inputAccessoryView;
 
 - (OUEFTextRange *)rangeOfLineContainingPosition:(OUEFTextPosition *)posn;
 - (UITextRange *)selectionRangeForPoint:(CGPoint)p granularity:(UITextGranularity)granularity;
@@ -182,6 +177,11 @@
 - (CGRect)targetRectangleForEditMenu;
 - (BOOL)canPerformMainMenuAction:(SEL)action withSender:(id)sender;
 - (BOOL)canSuperclassPerformAction:(SEL)action withSender:(id)sender;
+
+/* These are the interface from the thumbs to our selection machinery */
+- (void)thumbBegan:(OUITextThumb *)thumb;
+- (void)thumbMoved:(OUITextThumb *)thumb targetPosition:(CGPoint)pt;
+- (void)thumbEnded:(OUITextThumb *)thumb normally:(BOOL)normalEnd;
 
 /* These are the interface from the inspectable spans */
 - (NSDictionary *)attributesInRange:(UITextRange *)r;
@@ -208,10 +208,3 @@
 
 @end
 
-extern NSString * const OUIEditableFrameTextDidBeginEditingNotification;
-extern NSString * const OUIEditableFrameTextDidEndEditingNotification;
-extern NSString * const OUIEditableFrameTextDidChangeNotification;
-
-@interface UIResponder (OUIEditableFrameLoupeParentView)
-- (UIView *)parentViewForEditableFrameLoupe:(OUIEditableFrame *)frame;
-@end

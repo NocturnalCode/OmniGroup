@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -24,11 +24,6 @@ RCS_ID("$Id$");
     return OUIInspectorTextWellStyleDefault;
 }
 
-+ (OUIInspectorWellBackgroundType)textWellBackgroundType;
-{
-    return OUIInspectorWellBackgroundTypeButton;
-}
-
 + (UIControlEvents)textWellControlEvents;
 {
     // Return UIControlEventValueChanged for an editable field.
@@ -39,6 +34,7 @@ RCS_ID("$Id$");
 - initWithTitle:(NSString *)title action:(SEL)action;
 {
     OBPRECONDITION(title);
+    OBPRECONDITION(action);
     
     if (!(self = [super initWithNibName:nil bundle:nil]))
         return nil;
@@ -51,7 +47,6 @@ RCS_ID("$Id$");
 }
 
 @synthesize shouldEditOnLoad = _shouldEditOnLoad;
-@synthesize shouldSelectAllOnLoad = _shouldSelectAllOnLoad;
 
 - (OUIInspectorTextWell *)textWell;
 {
@@ -76,14 +71,12 @@ RCS_ID("$Id$");
     
     _textWell = [[[[self class] textWellClass] alloc] initWithFrame:textWellFrame];
     _textWell.autoresizingMask = UIViewAutoresizingFlexibleWidth;
-    _textWell.cornerType = OUIInspectorWellCornerTypeLargeRadius;
+    _textWell.rounded = YES;
     
-    if (_action)
-        [_textWell addTarget:self action:_action forControlEvents:[[self class] textWellControlEvents]];
+    [_textWell addTarget:self action:_action forControlEvents:UIControlEventTouchUpInside|UIControlEventValueChanged];
     
     OUIInspectorTextWellStyle style = [[self class] textWellStyle];
     _textWell.style = style;
-    _textWell.backgroundType = [[self class] textWellBackgroundType];
     
     if (style == OUIInspectorTextWellStyleSeparateLabelAndText)
         _textWell.label = self.title;
@@ -107,8 +100,6 @@ RCS_ID("$Id$");
     if (self.shouldEditOnLoad) {
         [[self textWell] startEditing];
         self.shouldEditOnLoad = NO;
-        if (self.shouldSelectAllOnLoad)
-            [_textWell selectAll:self showingMenu:NO];
     }
 }
 

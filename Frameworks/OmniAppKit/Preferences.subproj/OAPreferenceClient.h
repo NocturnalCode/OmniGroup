@@ -48,7 +48,7 @@
 
 // The default implementations of these methods do nothing:  each subclass is expected to implement them.
 - (void)updateUI;
-- (IBAction)setValueForSender:(id)sender;
+- (void)setValueForSender:(id)sender;
 - (void)willBecomeCurrentPreferenceClient;
 - (void)didBecomeCurrentPreferenceClient;
 - (void)resignCurrentPreferenceClient;

@@ -1,4 +1,4 @@
-// Copyright 2011-2012 Omni Development, Inc.  All rights reserved.
+// Copyright 2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -18,7 +18,7 @@
 
 /* OFDigestionContext protocol
  
- The caller should call methods either in the sequence verifyInit/processBuffer/verifyFinal or generateInit/processBuffer/generateFinal.
+ The caller should call methods either in the seqience verifyInit/processBuffer/verifyFinal or generateInit/processBuffer/generateFinal.
  
  (For the simple message-digest classes in this file there isn't much of a difference; verify simply generates a digest and compares it to the supplied digest. For some algorithms there is a difference.)
  
@@ -38,7 +38,6 @@
 @interface OFCCDigestContext : NSObject <OFDigestionContext>
 {
     NSData *result;
-    unsigned int outputLength;
 }
 
 - (BOOL)verifyInit:(NSError **)outError;
@@ -50,8 +49,6 @@
 - (BOOL)processBuffer:(const uint8_t *)buffer length:(size_t)length error:(NSError **)outError;
 
 @property (readonly, nonatomic) NSData *result;
-@property (readwrite, nonatomic) unsigned int outputLength;
-+ (unsigned int)outputLength;
 
 @end
 
@@ -82,8 +79,4 @@
 }
 
 @end
-
-/* There are two common representations for discrete-logarithm schemes like DSA and ECDSA: most APIs use an ASN.1 SEQUENCE of two INTEGERs encoded using DER, but the DSIG specification uses the (very slightly more compact) representation of two fixed-length integers concatenated with no headers. These functions help convert. */
-NSData *OFDigestConvertDLSigToPacked(NSData *der, int integerWidthBits, NSError **outError);
-NSData *OFDigestConvertDLSigToDER(NSData *packed, int integerWidthBits, NSError **outError);
 

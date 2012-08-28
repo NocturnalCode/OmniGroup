@@ -1,4 +1,4 @@
-// Copyright 2003-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2003-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -13,20 +13,15 @@
 #import <OmniFoundation/OFEnumNameTable.h>
 #import <OmniFoundation/NSNumber-OFExtensions-CGTypes.h>
 #import <Foundation/NSArray.h>
-#import <Foundation/NSCharacterSet.h>
-#import <Foundation/NSDictionary.h>
-#import <Foundation/NSLocale.h>
 #import <CoreText/CTParagraphStyle.h>
 
 RCS_ID("$Id$");
-
-NSString * const OATabColumnTerminatorsAttributeName = @"NSTabColumnTerminatorsAttributeName";
 
 @implementation OATextTab
 
 - (id)initWithTextAlignment:(OATextAlignment)alignment location:(CGFloat)location options:(NSDictionary *)options;
 {
-    OBPRECONDITION(options == nil || ([options count] == 1 && [[options objectForKey:OATabColumnTerminatorsAttributeName] isKindOfClass:[NSCharacterSet class]]));
+    OBPRECONDITION(options == nil); // Or we need to add NSTabColumnTerminatorsAttributeName and all that follows
     
     if (!(self = [super init]))
         return nil;
@@ -52,8 +47,6 @@ NSString * const OATabColumnTerminatorsAttributeName = @"NSTabColumnTerminatorsA
 - (id)initWithType:(OATextTabType)type location:(CGFloat)location;
 {
     OATextAlignment alignment;
-    NSDictionary *options = nil;
-    
     switch (type) {
         case OALeftTabStopType:
             alignment = OALeftTextAlignment;
@@ -64,21 +57,16 @@ NSString * const OATabColumnTerminatorsAttributeName = @"NSTabColumnTerminatorsA
         case OACenterTabStopType:
             alignment = OACenterTextAlignment;
             break;
-        case OADecimalTabStopType: {
-            alignment = OARightTextAlignment;
-
-            // TODO: How does NSTextTab deal with the locale for the decimal separator? What happens if the user switches locales or wants to display some data in one locale and other data in another?
-            NSString *decimalSeparator = [[NSLocale currentLocale] objectForKey:NSLocaleDecimalSeparator];
-            options = [NSDictionary dictionaryWithObject:[NSCharacterSet characterSetWithCharactersInString:decimalSeparator] forKey:OATabColumnTerminatorsAttributeName];
+        case OADecimalTabStopType:
+            OBFinishPorting; // OARightTextAlignment with the decimal character for the user setting
             break;
-        }
         default:
             OBASSERT_NOT_REACHED("Unknown text tab type");
             alignment = OALeftTextAlignment;
             break;
     }
         
-    return [self initWithTextAlignment:alignment location:location options:options];
+    return [self initWithTextAlignment:alignment location:location options:nil];
 }
 
 - (CGFloat)location;
@@ -88,7 +76,9 @@ NSString * const OATabColumnTerminatorsAttributeName = @"NSTabColumnTerminatorsA
 
 - (OATextTabType)tabStopType;
 {
-    NSCharacterSet *terminators = [_options objectForKey:OATabColumnTerminatorsAttributeName];
+    OBPRECONDITION(_options == nil); // Or we need to look this up from options with NSTabColumnTerminatorsAttributeName and all that follows
+
+    NSCharacterSet *terminators = nil;
     
     if (terminators && _alignment == OARightTextAlignment) {
         return OADecimalTabStopType;

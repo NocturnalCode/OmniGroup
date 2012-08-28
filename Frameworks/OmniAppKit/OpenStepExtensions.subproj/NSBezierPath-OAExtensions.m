@@ -1,4 +1,4 @@
-// Copyright 2000-2008, 2010-2012 Omni Development, Inc.  All rights reserved.
+// Copyright 2000-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -88,6 +88,7 @@ static BOOL _curvedLineIntersectsRect(const NSPoint *c, NSRect rect, CGFloat tol
 - (BOOL)_curvedLineHit:(NSPoint)point startPoint:(NSPoint)startPoint endPoint:(NSPoint)endPoint controlPoint1:(NSPoint)controlPoint1 controlPoint2:(NSPoint)controlPoint2 position:(CGFloat *)position padding:(CGFloat)padding;
 - (BOOL)_straightLineIntersection:(CGFloat *)length time:(CGFloat *)time segment:(NSPoint *)s line:(const NSPoint *)l;
 - (BOOL)_straightLineHit:(NSPoint)startPoint :(NSPoint)endPoint :(NSPoint)point  :(CGFloat *)position padding:(CGFloat)padding;
+- (NSInteger)_segmentHitByPoint:(NSPoint)point position:(CGFloat *)position padding:(CGFloat)padding;
 - (NSPoint)_endPointForSegment:(NSInteger)i;
 
 @end
@@ -152,7 +153,8 @@ static struct pointInfo getLinePoint(const NSPoint *a, CGFloat position) {
         if (element == NSMoveToBezierPathElement)
             return points[0];
         else
-            [NSException raise:NSInternalInconsistencyException format:@"Segment %ld has no currentpoint", i];
+#warning 64BIT: Check formatting arguments
+            [NSException raise:NSInternalInconsistencyException format:@"Segment %d has no currentpoint", i];
     }
     
     element = [self elementAtIndex:i-1 associatedPoints:points];
@@ -164,7 +166,8 @@ static struct pointInfo getLinePoint(const NSPoint *a, CGFloat position) {
         case NSLineToBezierPathElement:
             return points[0];
         default:
-            [NSException raise:NSInternalInconsistencyException format:@"Segment %ld has no currentpoint", i];
+#warning 64BIT: Check formatting arguments
+            [NSException raise:NSInternalInconsistencyException format:@"Segment %d has no currentpoint", i];
     }
     
     /* NOTREACHED */
@@ -581,14 +584,10 @@ static BOOL subsequent(struct OABezierPathIntersectionHalf *one, struct OABezier
         }
     }
     
-    // Trim the list down if there is much wasted space
     if (listSize - intersectionCount > 8) {
         listSize = intersectionCount;
-
-        // clang-sa warngs on possible zero size passed to realloc() (possibly because some implementations return NULL, others non-NULL?)
-        // We could free() the list and fill out NULL in the return struct, but all callers would need to be updated to expect that eventuality.
-        if (listSize != 0)
-            intersections = realloc(intersections, sizeof(*intersections) * listSize);
+#warning 64BIT: Inspect use of sizeof
+        intersections = realloc(intersections, sizeof(*intersections) * listSize);
     }
 
     return (struct OABezierPathIntersectionList){ intersectionCount, intersections };
@@ -797,72 +796,12 @@ void splitBezierCurveTo(const NSPoint *c, CGFloat t, NSPoint *l, NSPoint *r)
 
 - (NSInteger)segmentHitByPoint:(NSPoint)point padding:(CGFloat)padding {
     CGFloat position = 0;
-    return [self segmentHitByPoint:point position:&position padding:padding];
+    return [self _segmentHitByPoint:point position:&position padding:padding];
 }
 
 - (NSInteger)segmentHitByPoint:(NSPoint)point  {
     CGFloat position = 0;
-    return [self segmentHitByPoint:point position:&position padding:5.0f];
-}
-
-- (NSInteger)segmentHitByPoint:(NSPoint)point position:(CGFloat *)position padding:(CGFloat)padding;
-{
-    NSInteger count = [self elementCount];
-    NSInteger i;
-    NSPoint points[3];
-    NSPoint startPoint;
-    NSPoint currentPoint;
-    BOOL needANewStartPoint;
-    
-    if (count == 0)
-        return 0;
-    
-    NSBezierPathElement element = [self elementAtIndex:0 associatedPoints:points];
-    if (element != NSMoveToBezierPathElement) {
-        return 0;  // must start with a moveTo
-    }
-    
-    startPoint = currentPoint = points[0];
-    needANewStartPoint = NO;
-    
-    for(i=1;i<count;i++) {
-        element = [self elementAtIndex:i associatedPoints:points];
-        if (NSEqualPoints(points[0], point)) {
-            if (i==0) {
-                i = 1;
-            }
-            return i;
-        }
-        switch(element) {
-            case NSMoveToBezierPathElement:
-                currentPoint = points[0];
-                if (needANewStartPoint) {
-                    startPoint = currentPoint;
-                    needANewStartPoint = NO;
-                }
-                break;
-            case NSClosePathBezierPathElement:
-                if ([self _straightLineHit:currentPoint :startPoint :point :position padding:padding]){
-                    return i;
-                }
-                currentPoint = startPoint;
-                needANewStartPoint = YES;
-                break;
-            case NSLineToBezierPathElement:
-                if ([self _straightLineHit:currentPoint :points[0] :point :position padding:padding]){
-                    return i;
-                }
-                currentPoint = points[0];
-                break;
-            case NSCurveToBezierPathElement:
-                if ([self _curvedLineHit:point startPoint:currentPoint endPoint:points[2] controlPoint1:points[0] controlPoint2:points[1] position:position padding:padding]) {
-                    return i;
-                }
-                currentPoint = points[2];
-                break;
-        }
-    }
-    return 0;
+    return [self _segmentHitByPoint:point position:&position padding:5.0f];
 }
 
 - (BOOL)isStrokeHitByPoint:(NSPoint)point padding:(CGFloat)padding
@@ -1018,7 +957,8 @@ void splitBezierCurveTo(const NSPoint *c, CGFloat t, NSPoint *l, NSPoint *r)
                     break;
             }
             if (element != NSMoveToBezierPathElement)
-                [NSException raise:NSInternalInconsistencyException format:@"Segment %ld has no preceding moveto", pos.segment];
+#warning 64BIT: Check formatting arguments
+                [NSException raise:NSInternalInconsistencyException format:@"Segment %d has no preceding moveto", pos.segment];
             /* FALL THROUGH to lineto cxase */
         }
         case NSMoveToBezierPathElement:// PENDING: should probably skip this one
@@ -1032,13 +972,14 @@ void splitBezierCurveTo(const NSPoint *c, CGFloat t, NSPoint *l, NSPoint *r)
         }
     }
     
-    [NSException raise:NSInternalInconsistencyException format:@"Segment %ld has unexpected element type %ld", pos.segment, element];
+#warning 64BIT: Check formatting arguments
+    [NSException raise:NSInternalInconsistencyException format:@"Segment %d has unexpected element type %d", pos.segment, element];
     return (NSPoint){ nanf(""), nanf("") };
 }
 
 - (CGFloat)getPositionForPoint:(NSPoint)point {
     CGFloat position =0;
-    NSInteger segment = [self segmentHitByPoint:point position:&position padding:5.0f];
+    NSInteger segment = [self _segmentHitByPoint:point position:&position padding:5.0f];
     if (segment) {
         position = position + (segment - 1);
         position /= ([self elementCount] - 1);
@@ -1235,7 +1176,7 @@ static double subpathElementLength(struct subpathWalkingState *iter, double erro
         double totalLength;
         NSInteger filledLengths, curLength;
         
-        lengths = calloc(cursor.elementCount + 1, sizeof(double));
+        lengths = malloc((cursor.elementCount+1) * sizeof(lengths));
         filledLengths = 0;
         totalLength = 0;
 
@@ -1331,11 +1272,8 @@ static int compareFloat(const void *a_, const void *b_)
             yCoordinates[coordinateCount ++] = points[2].y;
         /* Else, a closepath --- ignore, since its y-coordinate would be a duplicate of some moveto's y-coordinate */
     }
-    if (coordinateCount < 2) {
-        free(yCoordinates);
+    if (coordinateCount < 2)
         return YES;  // degenerate path
-    }
-
     qsort(yCoordinates, coordinateCount, sizeof(*yCoordinates), compareFloat);
     
     CGFloat bestGapSize, bestGapMidpoint;
@@ -1348,12 +1286,11 @@ static int compareFloat(const void *a_, const void *b_)
             bestGapMidpoint = ( yCoordinates[coordinateIndex] + yCoordinates[coordinateIndex-1] ) / 2.0f;
         }
     }
-
-    free(yCoordinates);
-    
     OBASSERT(bestGapSize >= 0.0);
     if (bestGapSize <= 0)
         return YES; // another degenerate path
+    
+    free(yCoordinates);
     
     hit = [self firstIntersectionWithLine:&edge
                                 lineStart:(NSPoint){ .x = NSMinX(bounds) - 1, .y = bestGapMidpoint }
@@ -3455,6 +3392,66 @@ static BOOL _curvedLineIntersectsRect(const NSPoint *c, NSRect rect, CGFloat tol
     }
     
     return NO;
+}
+
+- (NSInteger)_segmentHitByPoint:(NSPoint)point position:(CGFloat *)position padding:(CGFloat)padding
+{
+    NSInteger count = [self elementCount];
+    NSInteger i;
+    NSPoint points[3];
+    NSPoint startPoint;
+    NSPoint currentPoint;
+    BOOL needANewStartPoint;
+
+    if (count == 0)
+        return 0;
+
+    NSBezierPathElement element = [self elementAtIndex:0 associatedPoints:points];
+    if (element != NSMoveToBezierPathElement) {
+        return 0;  // must start with a moveTo
+    }
+
+    startPoint = currentPoint = points[0];
+    needANewStartPoint = NO;
+    
+    for(i=1;i<count;i++) {
+        element = [self elementAtIndex:i associatedPoints:points];
+        if (NSEqualPoints(points[0], point)) {
+            if (i==0) {
+                i = 1;
+            }
+            return i;
+        }
+        switch(element) {
+            case NSMoveToBezierPathElement:
+                currentPoint = points[0];
+                if (needANewStartPoint) {
+                    startPoint = currentPoint;
+                    needANewStartPoint = NO;
+                }
+                break;
+            case NSClosePathBezierPathElement:
+                if ([self _straightLineHit:currentPoint :startPoint :point :position padding:padding]){
+                    return i;
+                }
+                currentPoint = startPoint;
+                needANewStartPoint = YES;
+                break;
+            case NSLineToBezierPathElement:
+                if ([self _straightLineHit:currentPoint :points[0] :point :position padding:padding]){
+                    return i;
+                }
+                currentPoint = points[0];
+                break;
+            case NSCurveToBezierPathElement:
+                if ([self _curvedLineHit:point startPoint:currentPoint endPoint:points[2] controlPoint1:points[0] controlPoint2:points[1] position:position padding:padding]) {
+                    return i;
+                }
+                currentPoint = points[2];
+                break;
+        }
+    }
+    return 0;
 }
 
 - (NSPoint)_endPointForSegment:(NSInteger)i;

@@ -1,4 +1,4 @@
-// Copyright 2008-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2008-2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -11,7 +11,7 @@ RCS_ID("$Id$");
 
 #import <OmniFoundation/NSString-OFConversion.h>
 #import <OmniFoundation/OFXMLDocument.h>
-#import <OmniFileStore/OFSDAVOperation.h>
+#import "OFSDAVOperation.h"
 
 @implementation OFSDAVFileManager (Network)
 
@@ -57,8 +57,7 @@ RCS_ID("$Id$");
     
     NSArray *redirects = [operation redirects];
     if ([redirects count]) {
-        NSDictionary *lastRedirect = [redirects lastObject];
-        NSURL *lastLocation = [lastRedirect objectForKey:kOFSRedirectedTo];
+        NSURL *lastLocation = [[redirects lastObject] objectForKey:kOFSRedirectedTo];
         if (![lastLocation isEqual:resultLocation])
             resultLocation = lastLocation;
     }

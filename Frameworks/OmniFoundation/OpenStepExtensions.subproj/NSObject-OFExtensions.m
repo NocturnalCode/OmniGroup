@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2007-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2005, 2007-2008, 2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -6,9 +6,6 @@
 // <http://www.omnigroup.com/developer/sourcecode/sourcelicense/>.
 
 #import <OmniFoundation/NSObject-OFExtensions.h>
-#import <OmniFoundation/OFNull.h>
-
-#import <dispatch/dispatch.h>
 
 RCS_ID("$Id$")
 
@@ -205,34 +202,11 @@ typedef double (*dblImp_t)(id self, SEL _cmd, id arg);
     NSMutableDictionary *returnDictionary = [NSMutableDictionary dictionary];
     for (id key in keys) {
 	id value = [self valueForKey:key];
-	if (key && ![key isNull])
+	if (key && key != [NSNull null])
 	    [returnDictionary setObject:value forKey:key];
     }
     
     return returnDictionary;
-}
-
-- (void)afterDelay:(NSTimeInterval)delay performBlock:(void (^)(void))block;
-{
-    block = [[block copy] autorelease];
-        
-    dispatch_source_t timer = dispatch_source_create(DISPATCH_SOURCE_TYPE_TIMER,
-                                                     0/* handle -- not applicable */,
-                                                     0/* mask -- not applicable */,
-                                                     dispatch_get_current_queue());
-    
-    dispatch_time_t startTime = dispatch_time(DISPATCH_TIME_NOW, delay * 1e9);
-    dispatch_source_set_timer(timer, startTime, 0/*interval*/, 0/*leeway*/);
-    
-    // Fire it up.
-    dispatch_resume(timer);
-    
-    dispatch_source_set_event_handler(timer, ^{
-        if (block)
-            block();
-        dispatch_source_cancel(timer);
-        dispatch_release(timer);
-    });
 }
 
 @end

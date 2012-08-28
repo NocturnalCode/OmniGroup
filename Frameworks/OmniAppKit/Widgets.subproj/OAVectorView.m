@@ -1,4 +1,4 @@
-// Copyright 2003-2006,2008, 2010, 2012 Omni Development, Inc. All rights reserved.
+// Copyright 2003-2006,2008, 2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -9,14 +9,11 @@
 
 #import <Cocoa/Cocoa.h>
 #import <OmniBase/OmniBase.h>
-#import <OmniFoundation/NSKeyValueObserving-OFExtensions.h> // For HAS_REMOVEOBSERVER_FORKEYPATH_CONTEXT
 #import <OmniFoundation/OmniFoundation.h>
 #import <OmniAppKit/NSTextField-OAExtensions.h>
 #import <OmniAppKit/OAVectorCell.h>
 
 RCS_ID("$Id$")
-
-static unsigned int _OAVectorViewObservationContext; 
 
 @interface OAVectorView (PrivateAPI)
 - (void)_updateFields;
@@ -223,7 +220,7 @@ static unsigned int _OAVectorViewObservationContext;
         if (observedObjectForVector)
             [self unbind:@"vector"];
         
-        [observable addObserver:self forKeyPath:keyPath options:0 context:&_OAVectorViewObservationContext];
+        [observable addObserver:self forKeyPath:keyPath options:0 context:NULL];
         
         // Register what object and what keypath are
         // associated with this binding
@@ -243,11 +240,7 @@ static unsigned int _OAVectorViewObservationContext;
 {
     OBASSERT([binding isEqualToString:@"vector"]);
     
-#if HAS_REMOVEOBSERVER_FORKEYPATH_CONTEXT
-    [observedObjectForVector removeObserver:self forKeyPath:observedKeyPathForVector context:&_OAVectorViewObservationContext];
-#else
     [observedObjectForVector removeObserver:self forKeyPath:observedKeyPathForVector];
-#endif
 
     [observedObjectForVector release];
     observedObjectForVector = nil;
@@ -261,19 +254,15 @@ static unsigned int _OAVectorViewObservationContext;
 
 - (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context
 {
-    if (context == &_OAVectorViewObservationContext) {
-        OBASSERT(observedObjectForVector);
-        
-        id newVector = [observedObjectForVector valueForKeyPath:observedKeyPathForVector];
-        if (vectorValueTransformer != nil) 
-            newVector = [vectorValueTransformer transformedValue:newVector]; 
-        
-        if (![newVector isEqual:[self objectValue]]) {
-            [self setObjectValue:newVector];
-            [self setNeedsDisplay:YES];
-        }
-    } else {
-        [super observeValueForKeyPath:keyPath ofObject:object change:change context:context];
+    OBASSERT(observedObjectForVector);
+    
+    id newVector = [observedObjectForVector valueForKeyPath:observedKeyPathForVector];
+    if (vectorValueTransformer != nil) 
+        newVector = [vectorValueTransformer transformedValue:newVector]; 
+
+    if (![newVector isEqual:[self objectValue]]) {
+        [self setObjectValue:newVector];
+        [self setNeedsDisplay:YES];
     }
 }
 

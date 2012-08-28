@@ -1,4 +1,4 @@
-// Copyright 1997-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2008, 2010-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -47,7 +47,6 @@ static NSIndexSet *OATableViewRowsInCurrentDrag = nil;
 + (void)didLoad;
 {
     originalTextDidEndEditing = OBReplaceMethodImplementationWithSelector(self, @selector(textDidEndEditing:), @selector(_replacementTextDidEndEditing:));
-    
     originalDragImageForRows = (typeof(originalDragImageForRows))OBReplaceMethodImplementationWithSelector(self, @selector(dragImageForRowsWithIndexes:tableColumns:event:offset:), @selector(_replacement_dragImageForRowsWithIndexes:tableColumns:event:offset:));
 }
 
@@ -76,7 +75,8 @@ static NSIndexSet *OATableViewRowsInCurrentDrag = nil;
 
 - (NSImage *)_replacement_dragImageForRowsWithIndexes:(NSIndexSet *)dragRows tableColumns:(NSArray *)tableColumns event:(NSEvent*)dragEvent offset:(NSPointPointer)dragImageOffset;
 {
-    [OATableViewRowsInCurrentDrag release]; // Just in case we missed releasing this somehow
+    NSPoint dragPoint;
+
     OATableViewRowsInCurrentDrag = [dragRows retain]; // hang on to these so we can use them in -draggedImage:endedAt:operation:.
 
     if ([self _columnIdentifiersForDragImage] == nil)
@@ -116,7 +116,7 @@ static NSIndexSet *OATableViewRowsInCurrentDrag = nil;
     }
     [dragImage unlockFocus];
 
-    NSPoint dragPoint = [self convertPoint:[dragEvent locationInWindow] fromView:nil];
+    dragPoint = [self convertPoint:[dragEvent locationInWindow] fromView:nil];
     dragImageOffset->x = NSMidX([self bounds]) - dragPoint.x;
     dragImageOffset->y = dragPoint.y - NSMidY([self bounds]);
 
@@ -446,7 +446,6 @@ static NSIndexSet *OATableViewRowsInCurrentDrag = nil;
     }
             
     [OATableViewRowsInCurrentDrag release]; // retained at start of drag
-    OATableViewRowsInCurrentDrag = nil;
 }
 
 

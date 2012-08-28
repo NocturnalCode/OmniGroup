@@ -1,4 +1,4 @@
-// Copyright 2001-2012 Omni Development, Inc.  All rights reserved.
+// Copyright 2001-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -18,18 +18,17 @@
 
 RCS_ID("$Id$");
 
-#ifdef DEBUG
-    #define ITEM_DEBUG(...) do{ if(OSUItemDebug) NSLog(__VA_ARGS__); }while(0)
+#if 0 && defined(DEBUG)
+    #define DEBUG_FLAGS(format, ...) NSLog((format), ## __VA_ARGS__)
 #else
-    #define ITEM_DEBUG(...) do{  }while(0)
+    #define DEBUG_FLAGS(format, ...) do {} while(0)
 #endif
 
 NSString * const OSUItemAvailableBinding = @"available";
 NSString * const OSUItemSupersededBinding = @"superseded";
 NSString * const OSUItemIgnoredBinding = @"ignored";
-NSString * const OSUItemOldStableBinding = @"oldStable";
 
-__private_extern__ BOOL OSUItemDebug = NO;
+static BOOL OSUItemDebug = NO;
 
 static NSArray *_requireNodes(NSXMLElement *base, NSString *namespace, NSString *tag, NSError **outError)
 {
@@ -114,7 +113,6 @@ static NSString *_optionalStringNode(NSXMLElement *elt, NSString *tag, NSString 
 static NSDictionary *FreeAttributes = nil;
 static NSDictionary *PaidAttributes = nil;
 static NSFont *itemFont = nil, *ignoredFont = nil;
-static NSNumber *ignoredFontNeedsObliquity = nil;
 
 @implementation OSUItem
 
@@ -128,15 +126,10 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
     NSFont *font = [NSFont controlContentFontOfSize:[NSFont systemFontSize]];
     
     NSFont *italicFont = [[NSFontManager sharedFontManager] convertFont:font toHaveTrait:NSItalicFontMask];
-    NSNumber *lackingObliquity;
-    if (!italicFont || [italicFont isEqual:font]) {
+    if (!italicFont)
         italicFont = font;
-        lackingObliquity = [[NSNumber alloc] initWithCGFloat:(CGFloat)0.35];
-    } else {
-        lackingObliquity = nil;
-    }
-    
-    FreeAttributes = [[NSDictionary alloc] initWithObjectsAndKeys:italicFont, NSFontAttributeName, [NSColor disabledControlTextColor], NSForegroundColorAttributeName, lackingObliquity, NSObliquenessAttributeName, nil];
+
+    FreeAttributes = [[NSDictionary alloc] initWithObjectsAndKeys:italicFont, NSFontAttributeName, [NSColor disabledControlTextColor], NSForegroundColorAttributeName, nil];
 
     NSFont *boldFont = [[NSFontManager sharedFontManager] convertFont:font toHaveTrait:NSBoldFontMask];
     if (!boldFont)
@@ -146,7 +139,6 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
     
     itemFont = [font retain];
     ignoredFont = [italicFont retain];
-    ignoredFontNeedsObliquity = lackingObliquity;
 }
 
 + (void)setSupersededFlagForItems:(NSArray *)items;
@@ -155,7 +147,7 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
     NSUInteger itemIndex, itemCount = [items count];
     for (itemIndex = 0; itemIndex < itemCount; itemIndex++) {
         OSUItem *item = [items objectAtIndex:itemIndex];
-        ITEM_DEBUG(@"Item %@:", [item shortDescription]);
+        DEBUG_FLAGS(@"Item %@:", [item shortDescription]);
         
         unsigned int peerIndex;
         for (peerIndex = 0; peerIndex < itemCount; peerIndex++) {
@@ -164,21 +156,20 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
             if (item == peer)
                 continue;
             
-            if ([peer available] && [peer supersedesItem:item]) {
-                ITEM_DEBUG(@"\t...is superseded by %@", [peer shortDescription]);
+            if ([peer available] && [peer supersedes:item]) {
+                DEBUG_FLAGS(@"\t...is superseded by %@", [peer shortDescription]);
                 [item setSuperseded:YES];
                 break;
             } else {
-                // ITEM_DEBUG(@"\t...is not superseded by %@", [peer shortDescription]);
+                DEBUG_FLAGS(@"\t...is not superseded by %@", [peer shortDescription]);
             }
         }
         
         if (![item superseded])
-            ITEM_DEBUG(@"\tis not superseded by any other item");
+            DEBUG_FLAGS(@"Item %@ is not superseded by any other item", [item shortDescription]);
     }
 }
 
-/* This predicate selects items which we might display in the panel. We filter out unavailable items (which run on an OS the user doesn't have) and superseded items (which are older than another item in the list on the same or stabler track). */
 + (NSPredicate *)availableAndNotSupersededPredicate;
 {
     static NSPredicate *predicate = nil;
@@ -188,22 +179,12 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
     return predicate;
 }
 
-/* This predicate selects items that are worth popping up a panel for. We include some items in the panel that aren't interesting enough to show the panel for, such as ignored items or downgrade-to-previous-stable-release items, and this predicate filters those out. Those items may still be of interest to the user if they explicitly ask for an update check, for example, but won't bring up an unsolicited dialog. */
-+ (NSPredicate *)availableAndNotSupersededIgnoredOrOldPredicate;
++ (NSPredicate *)availableAndNotSupersededOrIgnoredPredicate;
 {
     static NSPredicate *predicate = nil;
     
     if (!predicate)
-        predicate = [[NSPredicate predicateWithFormat:@"%K = YES AND %K = NO AND %K = NO AND %K = NO", OSUItemAvailableBinding, OSUItemSupersededBinding, OSUItemIgnoredBinding, OSUItemOldStableBinding] retain];
-    return predicate;
-}
-
-+ (NSPredicate *)availableOldStablePredicate;
-{
-    static NSPredicate *predicate = nil;
-    
-    if (!predicate)
-        predicate = [[NSPredicate predicateWithFormat:@"%K = YES AND %K = NO AND %K = YES", OSUItemAvailableBinding, OSUItemIgnoredBinding, OSUItemOldStableBinding] retain];
+        predicate = [[NSPredicate predicateWithFormat:@"%K = YES AND %K = NO AND %K = NO", OSUItemAvailableBinding, OSUItemSupersededBinding, OSUItemIgnoredBinding] retain];
     return predicate;
 }
 
@@ -332,7 +313,7 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
         if (!bestEnclosureNode) {
             NSString *description = NSLocalizedStringFromTableInBundle(@"No suitable enclosure found.", @"OmniSoftwareUpdate", OMNI_BUNDLE, @"error description - RSS feed does not have an enclosure that we can use");
             if (OSUItemDebug)
-                NSLog(@"Ignoring item without any suitable enclosures:\n%@", element);
+                NSLog(@"Ignoring item without any suiteable enclosures:\n%@", element);
             OSUError(outError, OSUUnableToParseSoftwareUpdateItem, description, nil);
             return nil;
         }
@@ -410,7 +391,7 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
 + (NSSet *)keyPathsForValuesAffectingValueForKey:(NSString *)aKey
 {
     if ([aKey isEqualToString:@"displayFont"] || [aKey isEqualToString:@"displayColor"])
-        return [NSSet setWithObjects:OSUItemIgnoredBinding, OSUItemAvailableBinding, OSUItemOldStableBinding, nil];
+        return [NSSet setWithObjects:OSUItemIgnoredBinding, OSUItemAvailableBinding, nil];
     else
         return [super keyPathsForValuesAffectingValueForKey:aKey];
 }
@@ -427,15 +408,12 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
 
 - (NSString *)displayName;
 {
-    if (_olderStable)
-        return [NSString stringWithFormat:NSLocalizedStringFromTableInBundle(@"Downgrade: %@", @"OmniSoftwareUpdate", OMNI_BUNDLE, @"software update item - if an item is presented as a downgrade option, use this to format its displayed title - placeholder is normal title"), _title];
-    
     return _title;
 }
 
 - (NSFont *)displayFont
 {
-    if (_ignored || !_available || _olderStable)
+    if (_ignored || !_available)
         return ignoredFont;
     else
         return itemFont;
@@ -473,47 +451,28 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
     return (_price != nil && [[NSDecimalNumber zero] isEqual:_price]);
 }
 
-- (NSString *)priceString;
+- (NSAttributedString *)priceAttributedString;
 {
     if (!_price)
         return nil;
     
     if ([[NSDecimalNumber zero] isEqual:_price]) {
-        return NSLocalizedStringFromTableInBundle(@"free!", @"OmniSoftwareUpdate", OMNI_BUNDLE, @"free upgrade price string - displayed in price column");
+        static NSAttributedString *freeAttributedString = nil;
+        if (!freeAttributedString)
+            freeAttributedString = [[NSAttributedString alloc] initWithString:NSLocalizedStringFromTableInBundle(@"free!", @"OmniSoftwareUpdate", OMNI_BUNDLE, @"free upgrade price string - displayed in price column") attributes:FreeAttributes];
+        return freeAttributedString;
     }
     
-    if (!_priceFormatter) {
-        // Make sure that we display the feed's specified currency according to the user's specified locale.  For example, if the user is Australia, we need to specify that the price is in US dollars instead of just using '$'.
-        NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
-        [formatter setFormatterBehavior:NSNumberFormatterBehavior10_4];
-        [formatter setNumberStyle:NSNumberFormatterCurrencyStyle];
-        [formatter setLocale:[NSLocale currentLocale]];
-        [formatter setCurrencyCode:_currencyCode];
-        _priceFormatter = formatter;
-    }
+    // Make sure that we display the feed's specified currency according to the user's specified locale.  For example, if the user is Australia, we need to specify that the price is in US dollars instead of just using '$'.
+    NSNumberFormatter *formatter = [[NSNumberFormatter alloc] init];
+    [formatter autorelease];
+    [formatter setFormatterBehavior:NSNumberFormatterBehavior10_4];
+    [formatter setNumberStyle:NSNumberFormatterCurrencyStyle];
+    [formatter setLocale:[NSLocale currentLocale]];
+    [formatter setCurrencyCode:_currencyCode];
     
-    return [_priceFormatter stringFromNumber:_price];
-}
-
-- (NSDictionary *)priceAttributesForStyle:(NSBackgroundStyle)cellStyle;
-{
-    if (!_price)
-        return nil;
-    
-    NSDictionary *attributes;
-    
-    if ([[NSDecimalNumber zero] isEqual:_price]) {
-        attributes = FreeAttributes;
-    } else {
-        attributes = PaidAttributes;
-    }
-    
-    if (cellStyle == NSBackgroundStyleDark) {
-        // Don't colorize text in highlighted rows --- it's too dark to read.
-        attributes = [attributes dictionaryWithObject:[NSColor selectedControlTextColor] forKey:NSForegroundColorAttributeName];
-    }
-    
-    return attributes;
+    NSString *priceString = [formatter stringFromNumber:_price];
+    return [[[NSAttributedString alloc] initWithString:priceString attributes:PaidAttributes] autorelease];
 }
 
 - (NSString *)downloadSizeString;
@@ -533,34 +492,26 @@ static NSNumber *ignoredFontNeedsObliquity = nil;
     BOOL available = [_minimumSystemVersion compareToVersionNumber:systemVersion] != NSOrderedDescending;
 
     if (available)
-        ITEM_DEBUG(@"Item %@ is available on %@", [self shortDescription], [systemVersion cleanVersionString]);
+        DEBUG_FLAGS(@"Item %@ is available on %@", [self shortDescription], [systemVersion cleanVersionString]);
     else
-        ITEM_DEBUG(@"Item %@ is not available on %@", [self shortDescription], [systemVersion cleanVersionString]);
+        DEBUG_FLAGS(@"Item %@ is not available on %@", [self shortDescription], [systemVersion cleanVersionString]);
     
     [self setAvailable:available];
 }
 
 @synthesize superseded = _superseded;
 
-- (BOOL)supersedesItem:(OSUItem *)peer;
+- (BOOL)supersedes:(OSUItem *)peer;
 {
-    // This item supersedes 'peer' if this item is not on a less stable software update track, has same major marketing version (so their license applies equally to both) and the peer has an older version number.
+    // One item supersedes another if they are on the same software update track, same major marketing version and same minimum OS version and the peer has an older version number.
     
-    if ([[self class] compareTrack:[self track] toTrack:[peer track]] == OSUTrackLessStable) {
-        /* We can't supersede a release that we are less stable than. */
+    if (OFNOTEQUAL(_track, [peer track]) ||
+        ([_marketingVersion componentAtIndex:0] != [[peer marketingVersion] componentAtIndex:0]) ||
+        ([_minimumSystemVersion compareToVersionNumber:[peer minimumSystemVersion]] != NSOrderedSame))
         return NO;
-    }
     
-    if ([_marketingVersion componentAtIndex:0] != [[peer marketingVersion] componentAtIndex:0]) {
-        /* We only supersede releases of the same major version. */
-        return NO;
-    }
-    
-    /* Otherwise, newer releases supersede older releases. */
     return ([_buildVersion compareToVersionNumber:[peer buildVersion]] == NSOrderedDescending);
 }
-
-@synthesize isOldStable = _olderStable;
 
 - (NSString *)verifyFile:(NSString *)path
 {
@@ -652,10 +603,6 @@ static void loadFallbackTrackInfoIfNeeded()
     }
 }
 
-/*
- Describes aTrack w.r.t othertrack:
- returns, e.g., OSUTrackLessStable if aTrack is less stable than otherTrack.
- */
 + (enum OSUTrackComparison)compareTrack:(NSString *)aTrack toTrack:(NSString *)otherTrack;
 {
     OBASSERT(aTrack != nil);

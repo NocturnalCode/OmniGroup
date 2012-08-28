@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2007-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2005, 2007-2008, 2010-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -110,16 +110,16 @@ RCS_ID("$Id$")
 #endif
 
 #if OFOBJECT_USE_INTERNAL_EXTRA_REF_COUNT
-static void OFCheckForInstruments(void) __attribute__((constructor));
-static void OFCheckForInstruments(void)
+// NSCopyObject does a byte-by-byte copy, which would clone the reference count of the copied object into the result.
+id <NSObject> OFCopyObject(OFObject *object, unsigned extraBytes, NSZone *zone)
 {
-    if (getenv("OAAllocationStatisticsOutputMask") || getenv("OAKeepBacktraces")) {
-        // Make sure this is visible in the console amidst all the other noise.
-        for (unsigned i = 0; i < 10; i++)
-            fprintf(stderr, "ERROR: Both OFObject inline ref counting and Instruments's Allocations are enabled.\n");
-#ifdef DEBUG // We want QA to be able to run Instruments, and they don't necessarily need the full ref count log, just a list of leaked objects.
-        abort();
-#endif
+    id <NSObject> result = NSCopyObject(object, extraBytes, zone);
+    if (result) {
+        OBASSERT([result isKindOfClass:[OFObject class]]);
+        [(OFObject *)result _resetInternalReferenceCount];
     }
+    return result;
 }
 #endif
+
+

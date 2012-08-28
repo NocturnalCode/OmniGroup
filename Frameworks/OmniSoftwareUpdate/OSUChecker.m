@@ -1,4 +1,4 @@
-// Copyright 2001-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2001-2008, 2010-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -38,12 +38,6 @@ RCS_ID("$Id$");
 
 #if 0 && (defined(DEBUG_bungi) || defined(DEBUG_wiml))
 #define OSU_DEBUG
-#endif
-
-#ifdef DEBUG
-#define ITEM_DEBUG(...) do{ if(OSUItemDebug) NSLog(__VA_ARGS__); }while(0)
-#else
-#define ITEM_DEBUG(...) do{  }while(0)
 #endif
 
 // Strings of interest
@@ -231,24 +225,6 @@ static NSString *OSUBundleVersionForBundle(NSBundle *bundle)
     return version;
 }
 
-#pragma mark -
-#pragma mark Activation / Deactivation
-
-+ (void)applicationDidBecomeActive:(NSNotification *)notification;
-{
-    if (OSURunTimeHasHandledApplicationTermination())
-        OSURunTimeApplicationActivated();
-}
-
-+ (void)applicationDidResignActive:(NSNotification *)notification;
-{
-    NSBundle *bundle = [NSBundle mainBundle];
-    OSURunTimeApplicationDeactivated([bundle bundleIdentifier], OSUBundleVersionForBundle(bundle), NO/*crashed*/);
-}
-
-#pragma mark -
-#pragma mark Start / Terminate
-
 + (void)startWithTarget:(id <OSUCheckerTarget>)target;
 {
 #ifdef OSU_DEBUG
@@ -302,15 +278,7 @@ static NSString *OSUBundleVersionForBundle(NSBundle *bundle)
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(_significantTimeChangeNotification:) name:UIApplicationSignificantTimeChangeNotification object:nil];
 #endif
     
-    OSURunTimeApplicationActivated();
-    
-#if defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationDidBecomeActive:) name:UIApplicationDidBecomeActiveNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationDidResignActive:) name:UIApplicationWillResignActiveNotification object:nil];
-#else
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationDidBecomeActive:) name:NSApplicationDidBecomeActiveNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(applicationDidResignActive:) name:NSApplicationDidResignActiveNotification object:nil];
-#endif
+    OSURunTimeApplicationStarted();
     
     if ([target respondsToSelector:@selector(checkerDidStart:)])
         [target checkerDidStart:checker];
@@ -334,7 +302,7 @@ static NSString *OSUBundleVersionForBundle(NSBundle *bundle)
     [checker setTarget:nil];
     
     NSBundle *bundle = [NSBundle mainBundle];
-    OSURunTimeApplicationDeactivated([bundle bundleIdentifier], OSUBundleVersionForBundle(bundle), NO/*crashed*/);
+    OSURunTimeApplicationTerminated([bundle bundleIdentifier], OSUBundleVersionForBundle(bundle), NO/*crashed*/);
 }
 
 - (OFVersionNumber *)applicationMarketingVersion
@@ -471,7 +439,6 @@ static NSString *OSUBundleVersionForBundle(NSBundle *bundle)
 {
     [self shutdown];
 }
-
 #endif
 
 #pragma mark -
@@ -822,8 +789,6 @@ static NSString *OSUBundleVersionForBundle(NSBundle *bundle)
         }
         
         data = [verifiedPortions objectAtIndex:0];
-    } else {
-        NSLog(@"OSU: Verification has been disabled. Unauthentic updates may be accepted.");
     }
     
     NSXMLDocument *document = [[[NSXMLDocument alloc] initWithData:data options:NSXMLNodeOptionsNone error:outError] autorelease];
@@ -845,8 +810,10 @@ static NSString *OSUBundleVersionForBundle(NSBundle *bundle)
     if (!nodes)
         return NO;
     
-    OFVersionNumber *currentVersion = [[[OFVersionNumber alloc] initWithVersionString:[self applicationEngineeringVersion]] autorelease];
-    NSString *currentTrack = [self applicationTrack];
+    //NSLog(@"nodes = %@", nodes);
+    
+    NSString *appVersionString = OSUBundleVersionForBundle([NSBundle mainBundle]);
+    OFVersionNumber *currentVersion = [[[OFVersionNumber alloc] initWithVersionString:appVersionString] autorelease];
 
     BOOL showOlderVersions = [[NSUserDefaults standardUserDefaults] boolForKey:@"OSUIncludeVersionsOlderThanCurrentVersion"];
     
@@ -857,30 +824,14 @@ static NSString *OSUBundleVersionForBundle(NSBundle *bundle)
         NSError *itemError = nil;
         OSUItem *item = [[[OSUItem alloc] initWithRSSElement:[nodes objectAtIndex:nodeIndex] error:&itemError] autorelease];
         if (!item) {
-            ITEM_DEBUG(@"Unable to interpret node %@ as a software update: %@", [nodes objectAtIndex:nodeIndex], itemError);
+#ifdef DEBUG	
+            NSLog(@"Unable to interpret node %@ as a software update: %@", [nodes objectAtIndex:nodeIndex], itemError);
+#endif	    
             if (!firstError)
                 firstError = itemError;
-        } else if ([currentVersion compareToVersionNumber:[item buildVersion]] == NSOrderedAscending) {
-            // Include the item if it is newer than us; the RSS feed does not filter this on our behalf.
+        } else if (showOlderVersions || [currentVersion compareToVersionNumber:[item buildVersion]] == NSOrderedAscending)
+            // Include the item if it is newer than us; the RSS feed might not be filtering this on our behalf.
             [items addObject:item];
-            ITEM_DEBUG(@"Using %@: version %@ > app %@", [item shortDescription], [[item buildVersion] cleanVersionString], [currentVersion cleanVersionString]);
-        } else {
-            item.isOldStable = YES;
-            if (showOlderVersions) {
-                // Including everything the feed sent us, even if it's older than us.
-                [items addObject:item];
-                ITEM_DEBUG(@"Using %@: showing old versions by preference", [item shortDescription]);
-            } else {
-                // Include an older release only if it's more stable: this allows someone to go back to a beta or full release version if they tried out the sneakypeek, for example.
-                enum OSUTrackComparison cmp = [OSUItem compareTrack:[item track] toTrack:currentTrack];
-                BOOL useIt = ( cmp == OSUTrackMoreStable );
-                if (useIt)
-                    [items addObject:item];
-                ITEM_DEBUG(@"%@ %@: older, and item track %@ vs app track %@ = %d",
-                           ( useIt ? @"Using" : @"Skipping" ),
-                           [item shortDescription], [item track], currentTrack, cmp);
-            }
-        }
     }
     
     // If we had some matching nodes, but none were usable, return the error for the first

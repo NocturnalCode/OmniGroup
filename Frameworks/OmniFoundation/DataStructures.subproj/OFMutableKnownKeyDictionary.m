@@ -367,12 +367,13 @@ static inline void _nonNilKey(id key)
 
 - (id)copyWithZone:(NSZone *)zone;
 {
-    return [self mutableKnownKeyCopyWithZone:zone];
+    // Not as fast as it could be; but we can optimize later if this gets called a lot.
+    return [[NSDictionary alloc] initWithDictionary:self];
 }
-
 - (id)mutableCopyWithZone:(NSZone *)zone;
 {
-    return [self mutableKnownKeyCopyWithZone:zone];
+    // Not as fast as it could be; but we can optimize later if this gets called a lot.
+    return [[NSMutableDictionary alloc] initWithDictionary:self];
 }
 
 @end

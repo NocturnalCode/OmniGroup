@@ -12,15 +12,6 @@ RCS_ID("$Id$")
 
 @implementation OFCCDigestContext
 
-- init
-{
-    if ( (self = [super init]) ) {
-        outputLength = [[self class] outputLength];
-        return self;
-    }
-    return nil;
-}
-
 - (void)dealloc
 {
     [result release];
@@ -28,14 +19,6 @@ RCS_ID("$Id$")
 }
 
 @synthesize result;
-
-- (void)setOutputLength:(unsigned int)v;
-{
-    if (v < 1 || v > [[self class] outputLength])
-        OBRejectInvalidCall(self, _cmd, @"Truncation length (%u) out of range", v);
-    outputLength = v;
-}
-@synthesize outputLength;
 
 - (BOOL)verifyInit:(NSError **)outError;
 {
@@ -78,11 +61,6 @@ RCS_ID("$Id$")
     OBRequestConcreteImplementation(self, _cmd);
 }
 
-+ (unsigned int)outputLength;
-{
-    OBRequestConcreteImplementation(self, _cmd);
-}
-
 @end
 
 
@@ -94,11 +72,6 @@ RCS_ID("$Id$")
 
 
 @implementation OFMD5DigestContext : OFCCDigestContext
-
-+ (unsigned int)outputLength;
-{
-    return CC_MD5_DIGEST_LENGTH;
-}
 
 - (BOOL)generateInit:(NSError **)outError;
 {
@@ -123,18 +96,13 @@ RCS_ID("$Id$")
     CC_MD5_Final(buf, &ctx);
     if (result)
         [result release];
-    result = [[NSData alloc] initWithBytes:buf length:outputLength];
+    result = [[NSData alloc] initWithBytes:buf length:CC_MD5_DIGEST_LENGTH];
     return result;
 }
 
 @end
 
 @implementation OFSHA1DigestContext : OFCCDigestContext
-
-+ (unsigned int)outputLength;
-{
-    return CC_SHA1_DIGEST_LENGTH;
-}
 
 - (BOOL)generateInit:(NSError **)outError;
 {
@@ -159,18 +127,13 @@ RCS_ID("$Id$")
     CC_SHA1_Final(buf, &ctx);
     if (result)
         [result release];
-    result = [[NSData alloc] initWithBytes:buf length:outputLength];
+    result = [[NSData alloc] initWithBytes:buf length:CC_SHA1_DIGEST_LENGTH];
     return result;
 }
 
 @end
 
 @implementation OFSHA256DigestContext : OFCCDigestContext
-
-+ (unsigned int)outputLength;
-{
-    return CC_SHA256_DIGEST_LENGTH;
-}
 
 - (BOOL)generateInit:(NSError **)outError;
 {
@@ -195,18 +158,13 @@ RCS_ID("$Id$")
     CC_SHA256_Final(buf, &ctx);
     if (result)
         [result release];
-    result = [[NSData alloc] initWithBytes:buf length:outputLength];
+    result = [[NSData alloc] initWithBytes:buf length:CC_SHA256_DIGEST_LENGTH];
     return result;
 }
 
 @end
 
 @implementation OFSHA512DigestContext : OFCCDigestContext
-
-+ (unsigned int)outputLength;
-{
-    return CC_SHA512_DIGEST_LENGTH;
-}
 
 - (BOOL)generateInit:(NSError **)outError;
 {
@@ -231,7 +189,7 @@ RCS_ID("$Id$")
     CC_SHA512_Final(buf, &ctx);
     if (result)
         [result release];
-    result = [[NSData alloc] initWithBytes:buf length:outputLength];
+    result = [[NSData alloc] initWithBytes:buf length:CC_SHA512_DIGEST_LENGTH];
     return result;
 }
 

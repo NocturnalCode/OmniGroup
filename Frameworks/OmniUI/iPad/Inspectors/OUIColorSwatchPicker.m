@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -8,7 +8,6 @@
 #import <OmniUI/OUIColorSwatchPicker.h>
 
 #import "OUIColorSwatch.h"
-#import "OUIInspectorSlice.h" // -showDetails:
 
 #import <OmniQuartz/OQColor.h>
 
@@ -19,9 +18,6 @@ RCS_ID("$Id$");
 NSString * const OUIColorSwatchPickerTextBackgroundPalettePreferenceKey = @"OUIColorSwatchPickerTextBackgroundPalette";
 NSString * const OUIColorSwatchPickerTextColorPalettePreferenceKey = @"OUIColorSwatchPickerTextColorPalette";
 
-@interface OUIColorSwatchPicker ()
-- (IBAction)_swatchTouchDown:(id)sender;
-@end
 
 @implementation OUIColorSwatchPicker
 
@@ -109,7 +105,7 @@ static id _commonInit(OUIColorSwatchPicker *self)
 @synthesize target = _nonretained_target;
 - (void)setTarget:(id)target;
 {
-    OBPRECONDITION(!target || (_showsSingleSwatch && [target respondsToSelector:@selector(showDetails:)]) || (!_showsSingleSwatch && [target respondsToSelector:@selector(changeColor:)])); // Later we could make the action configurable too...
+    OBPRECONDITION(!target || [target respondsToSelector:@selector(changeColor:)]); // Later we could make the action configurable too...
     
     _nonretained_target = target;
 }
@@ -179,7 +175,7 @@ static BOOL _colorsMatch(OQColor *color1, OQColor *color2)
 - (BOOL)hasMatchForColor:(OQColor *)color;
 {
     for (OUIColorSwatch *swatch in _colorSwatches)
-        if (_colorsMatch(swatch.color, color))
+        if (_colorsMatch(swatch.color, _swatchSelectionColor))
             return YES;
     return NO;
 }
@@ -252,10 +248,7 @@ static OUIColorSwatch *_newSwatch(OUIColorSwatchPicker *self, OQColor *color, CG
 
 - (void)_swatchTouchDown:(OUIColorSwatch *)swatch;
 {
-    if (_showsSingleSwatch || swatch == _navigationButton) {
-        if (![[UIApplication sharedApplication] sendAction:@selector(showDetails:) to:_nonretained_target from:swatch forEvent:nil])
-            NSLog(@"Unable to find target for -showDetails: on color swatch tap.");
-    } else if (![[UIApplication sharedApplication] sendAction:@selector(changeColor:) to:_nonretained_target from:swatch forEvent:nil])
+    if (![[UIApplication sharedApplication] sendAction:@selector(changeColor:) to:_nonretained_target from:swatch forEvent:nil])
         NSLog(@"Unable to find target for -changeColor: on color swatch tap.");
 }
 
@@ -303,7 +296,7 @@ static OUIColorSwatch *_newSwatch(OUIColorSwatchPicker *self, OQColor *color, CG
         swatch.selected = _colorsMatch(color, _swatchSelectionColor);
 
         if (_showsSingleSwatch) {
-            swatch.showNavigationArrow = YES;
+            swatch.singleSwatch = YES;
             break;
         }
         
@@ -333,12 +326,12 @@ static OUIColorSwatch *_newSwatch(OUIColorSwatchPicker *self, OQColor *color, CG
     // Detail navigation setup
     if (_showsSingleSwatch) {
         OUIColorSwatch *swatch = [_colorSwatches lastObject];
-        [swatch addTarget:self action:@selector(_swatchTouchDown:) forControlEvents:UIControlEventTouchDown];
+        [swatch addTarget:nil action:@selector(showDetails:) forControlEvents:UIControlEventTouchDown];
     } else if (_showsNavigationSwatch) {
         if (!_navigationButton)
-            _navigationButton = [[OUIColorSwatch navigateToColorPickerSwatch] retain];
+            _navigationButton = [[OUIColorSwatch navigateToColorPickerButton] retain];
         _configureSwatchView(self, _navigationButton, &offset, swatchSize);
-        [_navigationButton addTarget:self action:@selector(_swatchTouchDown:) forControlEvents:UIControlEventTouchDown];
+        [_navigationButton addTarget:nil action:@selector(showDetails:) forControlEvents:UIControlEventTouchDown];
     }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -13,15 +13,11 @@
 #import <OmniAppKit/OAFontDescriptor.h>
 #import <OmniBase/OBRuntimeCheck.h>
 #import <OmniBase/system.h>
-#import <OmniFileStore/OFSDocumentStore.h>
-#import <OmniFileStore/OFSDocumentStoreFileItem.h>
 #import <OmniFoundation/NSString-OFURLEncoding.h>
-#import <OmniFoundation/OFBundleRegistry.h>
-#import <OmniFoundation/OFPreference.h>
 #import <OmniUI/OUIAboutPanel.h>
 #import <OmniUI/OUIBarButtonItem.h>
 #import <OmniUI/OUIDocumentPicker.h>
-#import <OmniUI/OUIMenuController.h>
+#import <OmniUI/OUIDocumentStoreFileItem.h>
 #import <OmniUI/OUISpecialURLActionSheet.h>
 #import <OmniUI/OUIWebViewController.h>
 #import <OmniUI/UIView-OUIExtensions.h>
@@ -29,13 +25,13 @@
 
 #import <sys/sysctl.h>
 
+#import "OUIAppMenuController.h"
 #import "OUICredentials.h"
+#import "OUIEventBlockingView.h"
 #import "OUIParameters.h"
 #import "OUISoftwareUpdateController.h"
 #import "OUISyncMenuController.h"
 #import "UIViewController-OUIExtensions.h"
-#import "OUISingleDocumentAppController-Internal.h" // Terrible -- for _setupCloud:
-#import "OUIRestoreSampleDocumentListController.h"
 
 RCS_ID("$Id$");
 
@@ -45,20 +41,6 @@ RCS_ID("$Id$");
 
 @implementation OUIAppController
 {
-    OUIDocumentPicker *_documentPicker;
-    UIBarButtonItem *_appMenuBarItem;
-    OUIMenuController *_appMenuController;
-    OUISyncMenuController *_syncMenuController;
-    
-#if OUI_SOFTWARE_UPDATE_CHECK
-    OUISoftwareUpdateController *_softwareUpdateController;
-#endif
-    
-    dispatch_once_t _roleByFileTypeOnce;
-    NSDictionary *_roleByFileType;
-    
-    NSArray *_editableFileTypes;
-
     UIPopoverController *_possiblyVisiblePopoverController;
     UIPopoverArrowDirection _possiblyVisiblePopoverControllerArrowDirections;
     UIBarButtonItem *_possiblyTappedButtonItem;
@@ -103,18 +85,6 @@ NSTimeInterval OUIElapsedTimeSinceProcessCreation(void)
 {
     OBINITIALIZE;
 
-    // Poke OFPreference to get default values registered
-#ifdef DEBUG
-    NSDictionary *defaults = [NSDictionary dictionaryWithObjectsAndKeys:
-                              [NSNumber numberWithBool:YES], @"NSShowNonLocalizableStrings",
-                              [NSNumber numberWithBool:YES], @"NSShowNonLocalizedStrings",
-                              nil
-                              ];
-    [[NSUserDefaults standardUserDefaults] registerDefaults:defaults];
-#endif
-    [OFBundleRegistry registerKnownBundles];
-    [OFPreference class];
-    
     OUIShouldLogPerformanceMetrics = [[NSUserDefaults standardUserDefaults] boolForKey:@"LogPerformanceMetrics"];
 
     if (OUIShouldLogPerformanceMetrics)
@@ -170,6 +140,7 @@ NSTimeInterval OUIElapsedTimeSinceProcessCreation(void)
     return _editableFileTypes;
 }
 
+// This must be thread-safe since it is called from a background thread by OUIDocumentStore item scanning, via our -documentStore:shouldIncludeFileItemWithFileType:
 - (BOOL)canViewFileTypeWithIdentifier:(NSString *)uti;
 {
     OBPRECONDITION(!uti || [uti isEqualToString:[uti lowercaseString]]); // our cache uses lowercase keys.
@@ -217,26 +188,11 @@ NSTimeInterval OUIElapsedTimeSinceProcessCreation(void)
         return;
     
     if (file)
-        NSLog(@"Error reported from %s:%d", file, line);
+        NSLog(@"Error source file:%s line:%d", file, line);
     NSLog(@"%@", [error toPropertyList]);
     
-    // This delayed presentation avoids the "wait_fences: failed to receive reply: 10004003" lag/timeout which can happen depending on the context we start the reporting from.
-    [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-        NSMutableArray *messages = [NSMutableArray array];
-
-        NSString *reason = [error localizedFailureReason];
-        if (![NSString isEmptyString:reason])
-            [messages addObject:reason];
-        
-        NSString *suggestion = [error localizedRecoverySuggestion];
-        if (![NSString isEmptyString:suggestion])
-            [messages addObject:suggestion];
-        
-        NSString *message = [messages componentsJoinedByString:@"\n"];
-        
-        UIAlertView *alert = [[[UIAlertView alloc] initWithTitle:[error localizedDescription] message:message delegate:nil cancelButtonTitle:cancelButtonTitle otherButtonTitles:nil] autorelease];
-        [alert show];
-    }];
+    UIAlertView *alert = [[[UIAlertView alloc] initWithTitle:[error localizedDescription] message:[error localizedRecoverySuggestion] delegate:self cancelButtonTitle:cancelButtonTitle otherButtonTitles:nil] autorelease];
+    [alert show];
 }
 
 + (void)presentError:(NSError *)error file:(const char *)file line:(int)line;
@@ -278,20 +234,18 @@ NSTimeInterval OUIElapsedTimeSinceProcessCreation(void)
 {
     if (!_appMenuBarItem) {
         NSString *imageName = [[[NSBundle mainBundle] infoDictionary] objectForKey:@"OUIAppMenuImage"];
-        if ([NSString isEmptyString:imageName])
+        if (!imageName) {
+            // This image says 'REPLACE' on it -- you should put something nicer in your app bundle.
             imageName = @"OUIAppMenu.png";
+        }
         
         UIImage *appMenuImage = [UIImage imageNamed:imageName];
         OBASSERT(appMenuImage);
         _appMenuBarItem = [[UIBarButtonItem alloc] initWithImage:appMenuImage style:UIBarButtonItemStylePlain target:self action:@selector(showAppMenu:)];
-        
-        _appMenuBarItem.accessibilityLabel = NSLocalizedStringFromTableInBundle(@"Help and Settings", @"OmniUI", OMNI_BUNDLE, @"Help and Settings toolbar item accessibility label.");
     }
     
     return _appMenuBarItem;
 }
-
-@synthesize appMenuController = _appMenuController;
 
 - (void)resetKeychain;
 {
@@ -376,6 +330,62 @@ NSTimeInterval OUIElapsedTimeSinceProcessCreation(void)
     [controller autorelease];
 }
 
+- (BOOL)activityIndicatorVisible;
+{
+    return (_activityIndicator.superview != nil);
+}
+
+- (void)showActivityIndicatorInView:(UIView *)view;
+{
+    OBPRECONDITION(view);
+    OBPRECONDITION(view.window); // should already be on screen
+    
+    if (_activityIndicator || _eventBlockingView) {
+        OBASSERT_NOT_REACHED("Not supporting nested calls");
+        return;
+    }
+    
+    OUIBeginWithoutAnimating
+    {
+        _activityIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleWhiteLarge];
+        _activityIndicator.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin|UIViewAutoresizingFlexibleRightMargin|UIViewAutoresizingFlexibleTopMargin|UIViewAutoresizingFlexibleBottomMargin;
+        
+        _eventBlockingView = [[OUIEventBlockingView alloc] initWithFrame:CGRectZero];
+        _eventBlockingView.opaque = NO;
+        _eventBlockingView.backgroundColor = nil;
+        
+        _activityIndicator.center = view.center;
+        
+        _activityIndicator.layer.zPosition = 2;
+        [_activityIndicator startAnimating];
+        _activityIndicator.hidden = YES;
+        
+        [view.superview addSubview:_activityIndicator];
+        
+        UIView *topView = self.topViewController.view;
+        OBASSERT(topView.window == view.window);
+        
+        _eventBlockingView.frame = topView.bounds;
+        [topView addSubview:_eventBlockingView];
+    }
+    OUIEndWithoutAnimating;
+    
+    // Just fade this in
+    _activityIndicator.hidden = NO;
+}
+
+- (void)hideActivityIndicator;
+{
+    [_eventBlockingView removeFromSuperview];
+    [_eventBlockingView release];
+    _eventBlockingView = nil;
+    
+    [_activityIndicator stopAnimating];
+    [_activityIndicator removeFromSuperview];
+    [_activityIndicator release];
+    _activityIndicator = nil;
+}
+
 - (void)_showWebViewWithURL:(NSURL *)url title:(NSString *)title;
 {
     if (url == nil)
@@ -423,19 +433,6 @@ NSTimeInterval OUIElapsedTimeSinceProcessCreation(void)
     [OUIAboutPanel displayInSheet];
 }
 
-- (void)restoreSampleDocuments:(id)sender;
-{
-    UIViewController *viewController = [[OUIRestoreSampleDocumentListController alloc] init];
-    UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:viewController];
-    navigationController.modalPresentationStyle = UIModalPresentationFormSheet;
-    navigationController.modalTransitionStyle = UIModalTransitionStyleCoverVertical;
-    
-    [self.topViewController presentModalViewController:navigationController animated:YES];
-    
-    [navigationController release];
-    [viewController release];
-}
-
 - (void)runTests:(id)sender;
 {
     Class cls = NSClassFromString(@"SenTestSuite");
@@ -448,7 +445,7 @@ NSTimeInterval OUIElapsedTimeSinceProcessCreation(void)
 - (void)showAppMenu:(id)sender;
 {
     if (!_appMenuController)
-        _appMenuController = [[OUIMenuController alloc] initWithDelegate:self];
+        _appMenuController = [[OUIAppMenuController alloc] init];
 
     OBASSERT([sender isKindOfClass:[UIBarButtonItem class]]); // ...or we shouldn't be passing it as the bar item in the next call
     [_appMenuController showMenuFromBarItem:sender];
@@ -519,9 +516,6 @@ static BOOL _dismissVisiblePopoverInFavorOfPopover(OUIAppController *self, UIPop
     if (_possiblyTappedButtonItem && _possiblyVisiblePopoverController.popoverVisible) {
         // Hiding a popover sets its allowed arrow directions to UIPopoverArrowDirectionUnknown under iOS 5, which causes an exception here on representation. So, we now remember the original argument passed in ourselves rather than calling -arrowDirections on the popover.
         [self presentPopover:_possiblyVisiblePopoverController fromBarButtonItem:_possiblyTappedButtonItem permittedArrowDirections:_possiblyVisiblePopoverControllerArrowDirections animated:NO];
-    } else if (_possiblyVisiblePopoverController.popoverVisible) {
-        // popover was shown with -presentPopover:fromRect:inView:permittedArrowDirections:animated: which does not automatically reposition on rotation, so going to dismiss this popover
-        [_possiblyVisiblePopoverController dismissPopoverAnimated:NO];
     }
 }
 
@@ -529,9 +523,6 @@ static BOOL _dismissVisiblePopoverInFavorOfPopover(OUIAppController *self, UIPop
 - (BOOL)presentPopover:(UIPopoverController *)popover fromRect:(CGRect)rect inView:(UIView *)view permittedArrowDirections:(UIPopoverArrowDirection)arrowDirections animated:(BOOL)animated;
 {
     OBPRECONDITION(popover);
-    
-    // Treat a print sheet the same way as a popover and dismiss it when presenting something else. Sure would be nice if UIPrintInteractionController was a subclass of UIPopoverController as would make sense... 
-    [[UIPrintInteractionController sharedPrintController] dismissAnimated:animated];
     
     // If _possiblyVisibleActionSheet is not nil, then we have a visable actionSheet. Dismiss it.
     if (_possiblyVisibleActionSheet) {
@@ -604,11 +595,6 @@ static BOOL _dismissVisiblePopoverInFavorOfPopover(OUIAppController *self, UIPop
     [self dismissPopover:_possiblyVisiblePopoverController animated:animated];
 }
 
-- (void)forgetPossiblyVisiblePopoverIfAlreadyHidden;
-{
-    _forgetPossiblyVisiblePopoverIfAlreadyHidden(self);
-}
-
 // Action Sheet Helpers
 - (void)showActionSheet:(OUIActionSheet *)actionSheet fromSender:(id)sender animated:(BOOL)animated;
 {
@@ -619,9 +605,6 @@ static BOOL _dismissVisiblePopoverInFavorOfPopover(OUIAppController *self, UIPop
         return;
     }
     
-    // Treat a print sheet the same way as a popover and dismiss it when presenting something else. Sure would be nice if UIPrintInteractionController was a subclass of UIPopoverController as would make sense... 
-    [[UIPrintInteractionController sharedPrintController] dismissAnimated:animated];
-
     [self dismissActionSheetAndPopover:YES];
     
 
@@ -713,14 +696,6 @@ static BOOL _dismissVisiblePopoverInFavorOfPopover(OUIAppController *self, UIPop
     }
 }
 
-- (BOOL)isRunningRetailDemo;
-{
-#ifdef DEBUG_rachael
-    NSLog(@"demo mode = %d", [[OFPreference preferenceForKey:@"IPadRetailDemo"] boolValue]);
-#endif
-    return [[OFPreference preferenceForKey:@"IPadRetailDemo"] boolValue];
-}
-
 #pragma mark -
 #pragma mark UIApplicationDelegate
 
@@ -751,19 +726,24 @@ static BOOL _dismissVisiblePopoverInFavorOfPopover(OUIAppController *self, UIPop
 }
 
 #pragma mark -
-#pragma mark OFSDocumentStoreDelegate
+#pragma mark OUIDocumentStoreDelegate
 
-- (Class)documentStore:(OFSDocumentStore *)store fileItemClassForURL:(NSURL *)fileURL;
+- (Class)documentStore:(OUIDocumentPicker *)picker fileItemClassForURL:(NSURL *)fileURL;
 {
-    return [OFSDocumentStoreFileItem class];
+    return [OUIDocumentStoreFileItem class];
 }
 
-- (NSString *)documentStoreBaseNameForNewFiles:(OFSDocumentStore *)store;
+- (BOOL)documentStore:(OUIDocumentStore *)store shouldIncludeFileItemWithFileType:(NSString *)fileType;
+{
+    return [self canViewFileTypeWithIdentifier:fileType];
+}
+
+- (NSString *)documentStoreBaseNameForNewFiles:(OUIDocumentStore *)store;
 {
     return NSLocalizedStringFromTableInBundle(@"My Document", @"OmniUI", OMNI_BUNDLE, @"Base name for newly created documents. This will have an number appended to it to make it unique.");
 }
 
-- (NSArray *)documentStoreEditableDocumentTypes:(OFSDocumentStore *)store;
+- (NSArray *)documentStoreEditableDocumentTypes:(OUIDocumentStore *)store;
 {
     return [self editableFileTypes];
 }
@@ -771,69 +751,6 @@ static BOOL _dismissVisiblePopoverInFavorOfPopover(OUIAppController *self, UIPop
 - (void)createNewDocumentAtURL:(NSURL *)url completionHandler:(void (^)(NSURL *url, NSError *error))completionHandler;
 {
     OBRequestConcreteImplementation(self, _cmd);
-}
-
-- (BOOL)documentStore:(OFSDocumentStore *)store canViewFileTypeWithIdentifier:(NSString *)uti;
-{
-    return [self canViewFileTypeWithIdentifier:uti];
-}
-
-#pragma mark - OUIMenuControllerDelegate
-
-//#define SHOW_ABOUT_MENU_ITEM 1
-
-- (NSArray *)menuControllerOptions:(OUIMenuController *)menu;
-{
-    if (menu == _appMenuController) {
-        NSMutableArray *options = [NSMutableArray array];
-        OUIMenuOption *option;
-
-#ifdef SHOW_ABOUT_MENU_ITEM
-        option = [OUIMenuController menuOptionWithFirstResponderSelector:@selector(showAboutPanel:)
-                                                                   title:NSLocalizedStringFromTableInBundle(@"About", @"OmniUI", OMNI_BUNDLE, @"App menu item title")
-                                                                   image:[UIImage imageNamed:@"OUIMenuItemAbout.png"]];
-        [options addObject:option];
-#endif
-        
-        if ([OFSDocumentStore canPromptForUbiquityAccess]) {
-            // -_setupCloud: is on OUISingleDocumentAppController. Perhaps its iCloud support should be merged up, or split into a OUIDocumentController...
-            option = [OUIMenuController menuOptionWithFirstResponderSelector:@selector(_setupCloud:)
-                                                                       title:NSLocalizedStringFromTableInBundle(@"Set Up iCloud", @"OmniUI", OMNI_BUNDLE, @"App menu item title")
-                                                                       image:[UIImage imageNamed:@"OUIMenuItemCloudSetUp.png"]];
-            [options addObject:option];
-        }
-        
-        option = [OUIMenuController menuOptionWithFirstResponderSelector:@selector(showOnlineHelp:)
-                                                                   title:[[NSBundle mainBundle] localizedStringForKey:@"OUIHelpBookName" value:[[NSBundle mainBundle] objectForInfoDictionaryKey:@"OUIHelpBookName"] table:@"InfoPlist"]
-                                                                   image:[UIImage imageNamed:@"OUIMenuItemHelp.png"]];
-        [options addObject:option];
-        
-        option = [OUIMenuController menuOptionWithFirstResponderSelector:@selector(sendFeedback:)
-                                                                   title:[[OUIAppController controller] feedbackMenuTitle]
-                                                                   image:[UIImage imageNamed:@"OUIMenuItemSendFeedback.png"]];
-        [options addObject:option];
-        
-        option = [OUIMenuController menuOptionWithFirstResponderSelector:@selector(showReleaseNotes:)
-                                                                   title:NSLocalizedStringFromTableInBundle(@"Release Notes", @"OmniUI", OMNI_BUNDLE, @"App menu item title")
-                                                                   image:[UIImage imageNamed:@"OUIMenuItemReleaseNotes.png"]];
-        [options addObject:option];
-#if defined(DEBUG)
-        BOOL includedTestsMenu = YES;
-#else
-        BOOL includedTestsMenu = [[NSUserDefaults standardUserDefaults] boolForKey:@"OUIIncludeTestsMenu"];
-#endif
-        if (includedTestsMenu && NSClassFromString(@"SenTestSuite")) {
-            option = [OUIMenuController menuOptionWithFirstResponderSelector:@selector(runTests:)
-                                                                       title:NSLocalizedStringFromTableInBundle(@"Run Tests", @"OmniUI", OMNI_BUNDLE, @"App menu item title")
-                                                                       image:[UIImage imageNamed:@"OUIMenuItemRunTests.png"]];
-            [options addObject:option];
-        }
-        
-        return options;
-    }
-    
-    OBASSERT_NOT_REACHED("Unknown menu");
-    return nil;
 }
 
 #pragma mark -

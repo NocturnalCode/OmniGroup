@@ -1,4 +1,4 @@
-// Copyright 1997-2006, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2006, 2010-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -17,7 +17,6 @@
 #import "OWContentType.h"
 #import "OWNetLocation.h"
 #import "OWHTMLToSGMLObjects.h"
-#import "OWFLowercaseStringCache.h"
 
 RCS_ID("$Id$")
 
@@ -47,7 +46,7 @@ RCS_ID("$Id$")
 
 static NSArray *fakeRootURLs = nil;
 static NSLock *fakeRootURLsLock;
-static OWFLowercaseStringCache lowercaseSchemeCache;
+static OFLowercaseStringCache lowercaseSchemeCache;
 static NSArray *shortTopLevelDomains = nil;
 
 // These are carefully derived from RFC1808.
@@ -81,7 +80,7 @@ static OFRegularExpression *newlinesAndSurroundingWhitespaceRegularExpression;
 
     OBINITIALIZE;
 
-    OWFLowercaseStringCacheInit(&lowercaseSchemeCache);
+    OFLowercaseStringCacheInit(&lowercaseSchemeCache);
 
     AlphaSet = [[[OFCharacterSet alloc] initWithCharacterSet:[NSCharacterSet letterCharacterSet]] autorelease];
     DigitSet = [[[OFCharacterSet alloc] initWithString:@"0123456789"] autorelease];
@@ -222,7 +221,7 @@ static OFRegularExpression *newlinesAndSurroundingWhitespaceRegularExpression;
 
 + (OWURL *)urlWithScheme:(NSString *)aScheme netLocation:(NSString *)aNetLocation path:(NSString *)aPath params:(NSString *)someParams query:(NSString *)aQuery fragment:(NSString *)aFragment;
 {
-    return [self urlWithLowercaseScheme:OWFLowercaseStringCacheGet(&lowercaseSchemeCache, aScheme) netLocation:aNetLocation path:aPath params:someParams query:aQuery fragment:aFragment];
+    return [self urlWithLowercaseScheme:OFLowercaseStringCacheGet(&lowercaseSchemeCache, aScheme) netLocation:aNetLocation path:aPath params:someParams query:aQuery fragment:aFragment];
 }
 
 + (OWURL *)urlWithScheme:(NSString *)aScheme netLocation:(NSString *)aNetLocation path:(NSString *)aPath params:(NSString *)someParams queryDictionary:(NSDictionary *)queryDictionary fragment:(NSString *)aFragment;
@@ -255,7 +254,7 @@ static OFRegularExpression *newlinesAndSurroundingWhitespaceRegularExpression;
 
 + (OWURL *)urlWithScheme:(NSString *)aScheme schemeSpecificPart:(NSString *)aSchemeSpecificPart fragment:(NSString *)aFragment;
 {
-    return [self urlWithLowercaseScheme:OWFLowercaseStringCacheGet(&lowercaseSchemeCache, aScheme) schemeSpecificPart:aSchemeSpecificPart fragment:aFragment];
+    return [self urlWithLowercaseScheme:OFLowercaseStringCacheGet(&lowercaseSchemeCache, aScheme) schemeSpecificPart:aSchemeSpecificPart fragment:aFragment];
 }
 
 + (OWURL *)urlFromString:(NSString *)aString;
@@ -1270,7 +1269,7 @@ static OFRegularExpression *newlinesAndSurroundingWhitespaceRegularExpression;
 
 - initWithScheme:(NSString *)aScheme netLocation:(NSString *)aNetLocation path:(NSString *)aPath params:(NSString *)someParams query:(NSString *)aQuery fragment:(NSString *)aFragment;
 {
-    return [self initWithLowercaseScheme:OWFLowercaseStringCacheGet(&lowercaseSchemeCache, aScheme) netLocation:aNetLocation path:aPath params:someParams query:aQuery fragment:aFragment];
+    return [self initWithLowercaseScheme:OFLowercaseStringCacheGet(&lowercaseSchemeCache, aScheme) netLocation:aNetLocation path:aPath params:someParams query:aQuery fragment:aFragment];
 }
 
 - initWithLowercaseScheme:(NSString *)aScheme schemeSpecificPart:(NSString *)aSchemeSpecificPart fragment:(NSString *)aFragment;
@@ -1286,7 +1285,7 @@ static OFRegularExpression *newlinesAndSurroundingWhitespaceRegularExpression;
 
 - initWithScheme:(NSString *)aScheme schemeSpecificPart:(NSString *)aSchemeSpecificPart fragment:(NSString *)aFragment;
 {
-    return [self initWithLowercaseScheme:OWFLowercaseStringCacheGet(&lowercaseSchemeCache, aScheme) schemeSpecificPart:aSchemeSpecificPart fragment:aFragment];
+    return [self initWithLowercaseScheme:OFLowercaseStringCacheGet(&lowercaseSchemeCache, aScheme) schemeSpecificPart:aSchemeSpecificPart fragment:aFragment];
 }
 
 - (OWURL *)fakeRootURL;

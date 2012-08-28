@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -11,7 +11,7 @@
 
 #import <OmniFoundation/OFSaveType.h>
 
-@class OFSDocumentStoreFileItem, OUIDocumentViewController, OUIDocumentPreview;
+@class OUIDocumentStoreFileItem, OUIDocumentViewController, OUIDocumentPreview;
 
 @protocol OUIDocumentViewController;
 
@@ -19,31 +19,20 @@
 
 + (BOOL)shouldShowAutosaveIndicator;
 
-- initWithExistingFileItem:(OFSDocumentStoreFileItem *)fileItem error:(NSError **)outError;
-- initWithExistingFileItem:(OFSDocumentStoreFileItem *)fileItem conflictFileVersion:(NSFileVersion *)conflictFileVersion error:(NSError **)outError;
+- initWithExistingFileItem:(OUIDocumentStoreFileItem *)fileItem error:(NSError **)outError;
 - initEmptyDocumentToBeSavedToURL:(NSURL *)url error:(NSError **)outError;
 
-// Can set this before opening a document to tell it that it is being opened for preview generation. Later we might want more control of how errors are captured for off-screen document work, but for now this just makes errors get logged instead of presented to the user. The document view controller may also opt to load less data or otherwise speed up its work by only doing what is necessary for preview generation.
-@property(nonatomic) BOOL forPreviewGeneration;
-
-@property(readonly, nonatomic) OFSDocumentStoreFileItem *fileItem;
-@property(readonly, nonatomic) NSFileVersion *conflictFileVersion;
-
-@property(readonly, nonatomic) NSURL *fileVersionURL;
-@property(readonly, nonatomic) NSDate *fileVersionModificationDate;
+@property(readonly, nonatomic) OUIDocumentStoreFileItem *fileItem;
 
 @property(readonly) UIViewController <OUIDocumentViewController> *viewController;
-@property(readonly) BOOL editingDisabled;
+
+- (BOOL)saveAsNewDocumentToURL:(NSURL *)url error:(NSError **)outError;
 
 - (void)finishUndoGroup;
 - (IBAction)undo:(id)sender;
 - (IBAction)redo:(id)sender;
 
-// Called after an incoming rename, but before -enableEditing. Subclasses can refresh their references to child file wrappers. Called on a background queue via -performAsynchronousFileAccessUsingBlock:.
-- (void)reacquireSubItemsAfterMovingFromURL:(NSURL *)oldURL completionHandler:(void (^)(void))completionHandler;
-
-- (void)viewStateChanged; // Marks the document as dirty w/o logging an undo. If the app is backgrounded or the document closed it will be saved, but it won't be saved if the editor state change is the only change.
-- (void)beganUncommittedDataChange; // Can be used when the user has started a change (like editing a value in a text field) to request that the value be autosaved eventually. This requires that the document subclass knows how to save the partial edits and that the act of doing so makes a real undoable change. Calling this for editor state changes can result in taps to Undo resulting in data loss in the case that you make UIDocument think it is back to its last saved state.
+- (void)scheduleAutosave; // Will happen automatically for undoable changes, but for view stat changes that you want to be saved, you can call this.
 - (void)willClose;
 
 // Subclass responsibility
@@ -68,11 +57,13 @@
 - (void)didRebuildViewController:(id)state;
 
 // Support for previews
-+ (NSString *)placeholderPreviewImageNameForFileURL:(NSURL *)fileURL landscape:(BOOL)landscape;
-+ (void)writePreviewsForDocument:(OUIDocument *)document withCompletionHandler:(void (^)(void))completionHandler;
++ (CGSize)previewSizeForTargetSize:(CGSize)targetSize aspectRatio:(CGFloat)aspectRatio;
++ (NSURL *)fileURLForPreviewOfFileItem:(OUIDocumentStoreFileItem *)fileItem withLandscape:(BOOL)landscape;
++ (OUIDocumentPreview *)loadPreviewForFileItem:(OUIDocumentStoreFileItem *)fileItem withLandscape:(BOOL)landscape error:(NSError **)outError;
++ (UIImage *)placeholderPreviewImageForFileItem:(OUIDocumentStoreFileItem *)fileItem landscape:(BOOL)landscape;
++ (BOOL)writePreviewsForDocument:(OUIDocument *)document error:(NSError **)outError;
+
+// Camera roll
++ (UIImage *)cameraRollImageForFileItem:(OUIDocumentStoreFileItem *)fileItem;
 
 @end
-
-// A helper function to centralize the hack for -openWithCompletionHandler: leaving the document 'open-ish' when it fails.
-// Radar 10694414: If UIDocument -openWithCompletionHandler: fails, it is still a presenter
-extern void OUIDocumentHandleDocumentOpenFailure(OUIDocument *document, void (^completionHandler)(BOOL success));

@@ -77,6 +77,7 @@ const int OACalendarViewMaxNumWeeksIntersectedByMonth = 6;
 
     NSDateFormatter *monthAndYearFormatter;
     int index;
+    NSArray *shortWeekDays;
     NSRect buttonFrame;
     NSButton *button;
     NSBundle *thisBundle;
@@ -89,22 +90,26 @@ const int OACalendarViewMaxNumWeeksIntersectedByMonth = 6;
     thisBundle = [OACalendarView bundle];
     monthAndYearTextFieldCell = [[NSTextFieldCell alloc] init];
     [monthAndYearTextFieldCell setFont:[NSFont boldSystemFontOfSize:12.0f]];
-    
-    NSString *dateFormat = [NSDateFormatter dateFormatFromTemplate:@"MMMM YYYY" options:0 locale:[NSLocale currentLocale]];
-    monthAndYearFormatter = [[NSDateFormatter alloc] init];
-    [monthAndYearFormatter setDateFormat:dateFormat];
-
+    monthAndYearFormatter = [[NSDateFormatter alloc] initWithDateFormat:@"%B %Y" allowNaturalLanguage:NO];
     [monthAndYearTextFieldCell setFormatter:monthAndYearFormatter];
     [monthAndYearFormatter release];
 
-    NSArray *shortWeekDays = [monthAndYearFormatter veryShortWeekdaySymbols];
+#if defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_5
+    // This works under 10.5, but 10.6 10A222 returns nil (Radar 6533889)
+    NSDateFormatter *formatter = [[[NSDateFormatter alloc] init] autorelease];
+    shortWeekDays = [formatter shortWeekdaySymbols];
     if (!shortWeekDays)
-        shortWeekDays = [NSArray arrayWithObjects:@"S", @"M", @"T", @"W", @"T", @"F", @"S", nil];
+        shortWeekDays = [NSArray arrayWithObjects:@"Sun", @"Mon", @"Tue", @"Wed", @"Thu", @"Fri", @"Sat", nil];
+#else
+    NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+    shortWeekDays = [defaults objectForKey:NSShortWeekDayNameArray];
+#endif
+    OBASSERT(shortWeekDays);
     
     for (index = 0; index < OACalendarViewNumDaysPerWeek; index++) {
 	dayOfWeekCell[index] = [[NSTextFieldCell alloc] init];
         [dayOfWeekCell[index] setAlignment:NSCenterTextAlignment];
-        [dayOfWeekCell[index] setStringValue:[shortWeekDays objectAtIndex:index]];
+        [dayOfWeekCell[index] setStringValue:[[shortWeekDays objectAtIndex:index] substringToIndex:1]];
     }
 
     dayOfMonthCell = [[NSTextFieldCell alloc] init];

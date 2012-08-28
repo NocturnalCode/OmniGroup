@@ -1,4 +1,4 @@
-// Copyright 1997-2005, 2007-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2005, 2007-2008, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -167,6 +167,8 @@ static inline void _locked_checkCookiesLoaded()
 
 + (void)registerCookiesFromURL:(OWURL *)url outerContentInfos:(NSArray *)outerContentInfos headerValue:(NSString *)headerValue;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+#if 0
     NSString *defaultDomain, *defaultPath;
     OWCookie *cookie;
     OWCookieDomain *domain;
@@ -248,10 +250,13 @@ static inline void _locked_checkCookiesLoaded()
         
     if (OWCookiesDebug)
         NSLog(@"COOKIES: Notify target of new cookie %@", cookie);
+#endif
 }
 
 + (void)registerCookiesFromURL:(OWURL *)url context:(id <OWProcessorContext>)procContext headerDictionary:(OWHeaderDictionary *)headerDictionary;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+#if 0
     NSArray *valueArray;
     NSUInteger valueIndex, valueCount;
 
@@ -267,10 +272,14 @@ static inline void _locked_checkCookiesLoaded()
     for (valueIndex = 0; valueIndex < valueCount; valueIndex++) {
         [self registerCookiesFromURL:url outerContentInfos:[procContext outerContentInfos] headerValue:[valueArray objectAtIndex:valueIndex]];
     }
+#endif
 }
 
 + (NSArray *)cookiesForURL:(OWURL *)url;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+    return nil;
+#if 0
     NSString *path = [url path];
     if (path == nil)
         path = @"";
@@ -300,10 +309,14 @@ static inline void _locked_checkCookiesLoaded()
         NSLog(@"COOKIES: -cookiesForURL:%@ --> %@", [url shortDescription], [cookies description]);
 
     return cookies;
+#endif
 }
 
 + (NSString *)cookieHeaderStringForURL:(OWURL *)url;
 {    
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+    return nil;
+#if 0
     NSArray *cookies = [self cookiesForURL:url];
     if (cookies == nil)
         return nil;
@@ -329,6 +342,7 @@ static inline void _locked_checkCookiesLoaded()
     }
     
     return cookieString;
+#endif
 }
 
 + (BOOL)hasCookiesForSiteDomain:(NSString *)site;
@@ -363,6 +377,9 @@ static inline void _locked_checkCookiesLoaded()
 
 + (NSArray *)cookiesForSiteDomain:(NSString *)site;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+    return nil;
+#if 0
     site = [site lowercaseString];
     NSString *dottedSite = [@"." stringByAppendingString:site];
     BOOL emptySiteDomain = [NSString isEmptyString:site];
@@ -391,6 +408,7 @@ static inline void _locked_checkCookiesLoaded()
     }
     
     return cookiesForSite;
+#endif
 }
 
 + (void)didChange;
@@ -555,6 +573,9 @@ static inline void _locked_checkCookiesLoaded()
 
 - (NSArray *)cookies;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+    return nil;
+#if 0
     NSMutableArray *cookies;
     NSUInteger pathIndex, pathCount;
     
@@ -566,6 +587,7 @@ static inline void _locked_checkCookiesLoaded()
     [domainLock unlock];
     
     return cookies;
+#endif
 }
 
 - (NSComparisonResult)compare:(id)otherObject;
@@ -624,6 +646,8 @@ static inline void _locked_checkCookiesLoaded()
 
 + (void)saveCookies;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+#if 0
     NSString *cookieFilename;
     NSArray *domains;
     OFDataBuffer xmlBuffer;
@@ -668,17 +692,15 @@ static inline void _locked_checkCookiesLoaded()
             nil];
             
     OFDataBufferFlush(&xmlBuffer);
-    CFDataRef xmlData;
-    OFDataBufferRelease(&xmlBuffer, NULL, &xmlData);
-
-    if (![[NSFileManager defaultManager] atomicallyCreateFileAtPath:cookieFilename contents:(NSData *)xmlData attributes:attributes]) {
+    if (![[NSFileManager defaultManager] atomicallyCreateFileAtPath:cookieFilename contents:OFDataBufferData(&xmlBuffer) attributes:attributes]) {
 #warning TJW: There is not currently any good way to pop up a panel telling the user that they need to check the file permissions for a particular path.
         NSLog(@"Unable to save cookies to %@", cookieFilename);
     }
-
-    CFRelease(xmlData);
+    
+    OFDataBufferRelease(&xmlBuffer);
     
     [domainLock unlock];
+#endif
 }
 
 + (NSString *)cookiePath:(NSString *)fileName;
@@ -752,6 +774,9 @@ static inline void _locked_checkCookiesLoaded()
 
 - (OWCookiePath *)locked_pathNamed:(NSString *)pathName shouldCreate:(BOOL)shouldCreate;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+    return nil;
+#if 0
     NSUInteger pathIndex;
     OWCookiePath *path;
     
@@ -776,10 +801,14 @@ found:
     [domainLock unlock];
     
     return [path autorelease];
+#endif
 }
 
 + (NSArray *)searchDomainsForDomain:(NSString *)aDomain;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+    return nil;
+#if 0
     NSMutableArray *searchDomains;
     NSMutableArray *domainComponents;
     NSUInteger domainComponentCount;
@@ -810,10 +839,14 @@ found:
     }
     [domainComponents release];
     return searchDomains;
+#endif
 }
 
 + (OWCookie *)cookieFromHeaderValue:(NSString *)headerValue defaultDomain:(NSString *)defaultDomain defaultPath:(NSString *)defaultPath;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+    return nil;
+#if 0
     NSString *aName, *aValue;
     NSDate *aDate = nil;
     NSString *aDomain = defaultDomain, *aPath = defaultPath;
@@ -887,7 +920,7 @@ found:
                 }
 
                 if (OWCookiesDebug)
-                    NSLog(@"COOKIES: domainComponents = %@, minimum = %lu", domainComponents, [OWURL minimumDomainComponentsForDomainComponents:domainComponents]);
+                    NSLog(@"COOKIES: domainComponents = %@, minimum = %d", domainComponents, [OWURL minimumDomainComponentsForDomainComponents:domainComponents]);
 
                 if (defaultDomain && (![[@"." stringByAppendingString:defaultDomain] hasSuffix:aDomain] || domainComponentCount < [OWURL minimumDomainComponentsForDomainComponents:domainComponents])) {
                     // Sorry, you can't create cookies for other domains, nor can you create cookies for "com" or "co.uk".  Make sure that we allow for the case where there is no default domain (file: urls, for example).
@@ -906,10 +939,13 @@ found:
     }
         
     return [[[OWCookie alloc] initWithDomain:aDomain path:aPath name:aName value:aValue expirationDate:aDate secure:isSecure] autorelease];
+#endif
 }
 
 - (void)locked_addApplicableCookies:(NSMutableArray *)cookies forPath:(NSString *)aPath urlIsSecure:(BOOL)secure includeRejected:(BOOL)includeRejected;
 {
+    OBFinishPorting; // 64->32 warnings -- if we even keep this framework
+#if 0
     NSUInteger pathIndex;
     OWCookiePath *path;
     
@@ -921,6 +957,7 @@ found:
         
         [path addNonExpiredCookiesToArray:cookies usageIsSecure:secure includeRejected:includeRejected];
     }
+#endif
 }
 
 //

@@ -1,4 +1,4 @@
-// Copyright 2008, 2010, 2012 Omni Development, Inc. All rights reserved.
+// Copyright 2008, 2010 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -53,15 +53,7 @@ void _OBReportUnexpectedError(NSError *error)
 
 @implementation OBTestCase
 
-#if defined(OMNI_ASSERTIONS_ON)
-static void OBTestCaseAssertionHandler(const char *type, const char *expression, const char *file, unsigned int lineNumber)
-{
-    OBLogAssertionFailure(type, expression, file, lineNumber);
-//    abort();
-}
-#endif
-
-+ (void)initialize;
++ (void) initialize;
 {
     OBINITIALIZE;
 #ifdef COVERAGE
@@ -70,10 +62,6 @@ static void OBTestCaseAssertionHandler(const char *type, const char *expression,
     
 #if !defined(TARGET_OS_IPHONE) && !TARGET_OS_IPHONE
     [OBPostLoader processClasses];
-#endif
-    
-#if defined(OMNI_ASSERTIONS_ON)
-    OBSetAssertionFailureHandler(OBTestCaseAssertionHandler);
 #endif
 }
 

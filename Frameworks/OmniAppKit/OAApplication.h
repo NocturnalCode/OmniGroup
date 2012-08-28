@@ -1,4 +1,4 @@
-// Copyright 1997-2012 Omni Development, Inc. All rights reserved.
+// Copyright 1997-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -35,6 +35,8 @@
 - (NSTimeInterval)lastEventTimeInterval;
 - (BOOL)mouseButtonIsDownAtIndex:(unsigned int)mouseButtonIndex;
 - (BOOL)scrollWheelButtonIsDown;
+- (NSUInteger)currentModifierFlags DEPRECATED_ATTRIBUTE;
+- (BOOL)checkForModifierFlags:(NSUInteger)flags DEPRECATED_ATTRIBUTE;
 - (NSUInteger)launchModifierFlags;
 
 - (void)scheduleModalPanelForTarget:(id)modalController selector:(SEL)modalSelector userInfo:(id)userInfo;
@@ -66,10 +68,8 @@
 
 @end
 
-@protocol OAApplicationDelegate <NSApplicationDelegate>
-@optional
-- (NSString *)applicationSupportDirectoryName:(OAApplication *)application;
-- (void)openAddressWithString:(NSString *)urlString;
+@interface NSObject (OAApplicationDelegate)
+- (NSString *)applicationSupportDirectoryName;
 @end
 
 @interface NSResponder (OAApplicationEvents)
@@ -86,7 +86,6 @@ typedef BOOL (^OAResponderChainApplier)(id target);
 extern BOOL OATargetSelectionEnabled(void);
 
 @interface NSObject (OATargetSelection)
-// Return NO to stop the traversal, YES to continue
 - (BOOL)applyToResponderChain:(OAResponderChainApplier)applier;
 - (id)responsibleTargetForAction:(SEL)action sender:(id)sender;
 @end

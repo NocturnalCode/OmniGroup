@@ -1,4 +1,4 @@
-// Copyright 2000-2007, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2000-2007, 2010-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -15,6 +15,14 @@
 
 RCS_ID("$Id$")
 
+@interface OAAquaButton (PrivateAPI)
+- (void)_setButtonImages;
+- (NSImage *)_imageForCurrentControlTint;
+@end
+
+NSString * const OAAquaButtonAquaImageSuffix = @"Aqua";
+NSString * const OAAquaButtonGraphiteImageSuffix = @"Graphite";
+NSString * const OAAquaButtonClearImageSuffix = @"Clear";
 
 @implementation OAAquaButton
 
@@ -58,13 +66,15 @@ RCS_ID("$Id$")
     [aquaImage release];
     [graphiteImage release];
     clearImage = [[NSImage imageNamed:anImageName inBundle:aBundle] retain];
-    aquaImage = [[NSImage imageNamed:[anImageName stringByAppendingString:OAAquaImageTintSuffix] inBundle:aBundle] retain];
-    graphiteImage = [[NSImage imageNamed:[anImageName stringByAppendingString:OAGraphiteImageTintSuffix] inBundle:aBundle] retain];
+    aquaImage = [[NSImage imageNamed:[anImageName stringByAppendingString:OAAquaButtonAquaImageSuffix] inBundle:aBundle] retain];
+    graphiteImage = [[NSImage imageNamed:[anImageName stringByAppendingString:OAAquaButtonGraphiteImageSuffix] inBundle:aBundle] retain];
     
     [self _setButtonImages];
 }
 
-#pragma mark - Private
+@end
+
+@implementation OAAquaButton (PrivateAPI)
 
 - (void)_controlTintChanged:(NSNotification *)notification;
 {

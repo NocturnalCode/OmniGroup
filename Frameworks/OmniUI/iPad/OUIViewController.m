@@ -1,4 +1,4 @@
-// Copyright 2011-2012 The Omni Group. All rights reserved.
+// Copyright 2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -14,18 +14,6 @@ RCS_ID("$Id$");
 #else
     #define DEBUG_PARENT_VC(format, ...)
 #endif
-
-@implementation OUIViewController
-{
-    CGRect _initialFrame;
-    
-    OUIViewControllerVisibility _visibility;
-    BOOL _lastChangeAnimated;
-    UIViewController *_unretained_parent; 
-
-    // This is not redundant with parentViewController from UIViewController. UIViewController sets parentViewController in addChildViewController: BEFORE calling willMoveToParentViewController. We don't set _unretained_parent until the end of didMoveToParentViewController, so we can check for (a) consistency of the parent across the calls and (b) make sure we move through having no parent before getting a new parent.
-    UIViewController *_unretained_prospective_parent;
-}
 
 #ifdef OMNI_ASSERTIONS_ON
 static BOOL _parentVisibiityMatches(OUIViewController *self)
@@ -58,6 +46,8 @@ static BOOL _viewControllerIsChildButNotInViewHiearchy(OUIViewController *self, 
 }
 #endif
 
+@implementation OUIViewController
+
 - (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
 {
     if (!(self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil]))
@@ -72,8 +62,7 @@ static BOOL _viewControllerIsChildButNotInViewHiearchy(OUIViewController *self, 
     [super dealloc];
 }
 
-@synthesize initialFrame = _initialFrame;
-@synthesize visibility = _visibility;
+@synthesize  visibility = _visibility;
 
 - (BOOL)isChildViewController:(UIViewController *)child;
 {
@@ -83,14 +72,6 @@ static BOOL _viewControllerIsChildButNotInViewHiearchy(OUIViewController *self, 
 
 #pragma mark -
 #pragma mark UIViewController subclass
-
-- (void)viewDidLoad;
-{
-    [super viewDidLoad];
-    
-    if (CGRectIsEmpty(_initialFrame) == NO)
-        self.view.frame = _initialFrame;
-}
 
 // These hooks maintain visibility state, which is accessible by clients using the visibility property and is used in places to skip the adding of child view controllers when we aren't visible.
 - (void)viewDidUnload;
@@ -116,9 +97,10 @@ static BOOL _viewControllerIsChildButNotInViewHiearchy(OUIViewController *self, 
 - (void)viewDidAppear:(BOOL)animated;
 {
     DEBUG_PARENT_VC(@"In %s", __func__);
-
-    // iOS 5 calls this method twice, sadly.
-    OBPRECONDITION(_visibility == OUIViewControllerVisibilityAppearing || _visibility == OUIViewControllerVisibilityVisible);
+    
+    // iOS 5 b5 calls this method twice, sadly.
+    OBPRECONDITION((([self isMovingToParentViewController] || [self isBeingPresented] || (self.parentViewController == nil)) && _visibility == OUIViewControllerVisibilityAppearing) ||
+                   ((![self isMovingToParentViewController] && ![self isBeingPresented]) && _visibility == OUIViewControllerVisibilityVisible));
     
     OBPRECONDITION(_lastChangeAnimated == animated);
 

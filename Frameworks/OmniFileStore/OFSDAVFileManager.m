@@ -1,4 +1,4 @@
-// Copyright 2008-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2008-2011 Omni Development, Inc.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -9,7 +9,8 @@
 
 #import "OFSDAVFileManager-Reachability.h"
 #import "OFSDAVFileManager-Network.h"
-#import <OmniFileStore/OFSDAVOperation.h>
+#import "OFSDAVOperation.h"
+
 #import <OmniFileStore/Errors.h>
 #import <OmniFileStore/OFSFileInfo.h>
 
@@ -34,7 +35,7 @@
 
 RCS_ID("$Id$");
 
-@interface OFSDAVFileManager ()
+@interface OFSDAVFileManager (Private)
 - (NSArray *)_propfind:(NSURL *)url depth:(NSString *)depth redirects:(NSMutableArray *)redirs error:(NSError **)outError;
 - (NSMutableArray *)_recursivelyCollectDirectoryContentsAtURL:(NSURL *)url collectingRedirects:(NSMutableArray *)redirections options:(OFSDirectoryEnumerationOptions)options error:(NSError **)outError;
 @end
@@ -295,12 +296,9 @@ static id <OFSDAVFileManagerAuthenticationDelegate> AuthenticationDelegate = nil
     {
         NSURL *foundURL = [fileInfo originalURL];
         if (!OFISEQUAL(url, foundURL)) {
-            // The URLs will legitimately not be equal if we got a redirect -- don't spuriously warn in that case.
-            if (OFNOTEQUAL([OFSFileInfo nameForURL:url], [OFSFileInfo nameForURL:foundURL])) {
-                OBASSERT_NOT_REACHED("Any issues with encoding normalization or whatnot?");
-                NSLog(@"url: %@", url);
-                NSLog(@"foundURL: %@", foundURL);
-            }
+            NSLog(@"url: %@", url);
+            NSLog(@"foundURL: %@", foundURL);
+            OBASSERT(OFISEQUAL([OFSFileInfo nameForURL:url], [OFSFileInfo nameForURL:foundURL])); // Any issues with encoding normalization or whatnot?
         }
     }
 #endif
@@ -328,8 +326,7 @@ static id <OFSDAVFileManagerAuthenticationDelegate> AuthenticationDelegate = nil
         return nil;
     }
 
-    NSDictionary *lastRedirect = [redirections lastObject];
-    NSURL *expectedDirectoryURL = [lastRedirect objectForKey:kOFSRedirectedTo];
+    NSURL *expectedDirectoryURL = ( redirections && [redirections count] )? [[redirections lastObject] objectForKey:kOFSRedirectedTo] : nil;
     if (!expectedDirectoryURL)
         expectedDirectoryURL = url;
         
@@ -561,7 +558,9 @@ static id <OFSDAVFileManagerAuthenticationDelegate> AuthenticationDelegate = nil
     return ( [self _runRequestExpectingEmptyResultData:request error:outError] != nil )? YES : NO;
 }
 
-#pragma mark - Private
+@end
+
+@implementation OFSDAVFileManager (Private)
 
 static NSString * const DAVNamespaceString = @"DAV:";
 
@@ -593,8 +592,6 @@ static NSString * const DAVNamespaceString = @"DAV:";
             [requestDocument pushElement:@"getcontentlength"];
             [requestDocument popElement];
             [requestDocument pushElement:@"getlastmodified"];
-            [requestDocument popElement];
-            [requestDocument pushElement:@"getetag"];
             [requestDocument popElement];
         }
         [requestDocument popElement];
@@ -643,8 +640,7 @@ static NSString * const DAVNamespaceString = @"DAV:";
         NSArray *redirs = [ranOperation redirects];
         if ([redirs count]) {
             [redirections addObjectsFromArray:redirs];  // Our caller may also be interested in redirects.
-            NSDictionary *lastRedirect = [redirs lastObject];
-            resultsBaseURL = [lastRedirect objectForKey:kOFSRedirectedTo];
+            resultsBaseURL = [[redirs lastObject] objectForKey:kOFSRedirectedTo];
         }
     }
     
@@ -685,7 +681,6 @@ static NSString * const DAVNamespaceString = @"DAV:";
             BOOL hasPropstat = NO;
             off_t size = 0;
             NSDate *dateModified = nil;
-            NSString *eTag = nil;
             
             while ([cursor openNextChildElementNamed:@"propstat"]) {
                 hasPropstat = YES;
@@ -705,10 +700,6 @@ static NSString * const DAVNamespaceString = @"DAV:";
                         if ( (propElement = [anElement firstChildNamed:@"getlastmodified"]) != nil ) {
                             NSString *lastModified = OFCharacterDataFromElement(propElement);
                             dateModified = [dateFormatter dateFromString:lastModified];
-                        }
-
-                        if ( (propElement = [anElement firstChildNamed:@"getetag"]) != nil ) {
-                            eTag = OFCharacterDataFromElement(propElement);
                         }
                     } else if ([childName isEqualToString:@"status"]) {
                         NSString *statusLine = OFCharacterDataFromElement(anElement);
@@ -736,7 +727,7 @@ static NSString * const DAVNamespaceString = @"DAV:";
             
             NSURL *fullURL = [NSURL URLWithString:encodedPath relativeToURL:resultsBaseURL];
             
-            OFSFileInfo *info = [[OFSFileInfo alloc] initWithOriginalURL:fullURL name:nil exists:exists directory:directory size:size lastModifiedDate:dateModified eTag:eTag];
+            OFSFileInfo *info = [[OFSFileInfo alloc] initWithOriginalURL:fullURL name:nil exists:exists directory:directory size:size lastModifiedDate:dateModified];
             [fileInfos addObject:info];
             [info release];
         }

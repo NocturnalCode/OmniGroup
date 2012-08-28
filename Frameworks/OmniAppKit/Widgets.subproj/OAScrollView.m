@@ -435,34 +435,34 @@ static NSFont *smallSystemFont;
 
 - (void)setDocumentView:(NSView *)aView
 {
-    if ([aView conformsToProtocol:@protocol(OAZoomableView)]) {
-	unsigned int scaleIndex;
-
-	/* create scale scalePopUpButton */
-	scalePopUpButton = [[NSPopUpButton alloc] init];
-        [scalePopUpButton setBordered:NO];
-        [scalePopUpButton setFont:[NSFont systemFontOfSize:10]];
-	for (scaleIndex = 0; startingScales[scaleIndex] != 0; scaleIndex++) {
-	    NSString *title = [NSString stringWithFormat:@"%d%%", startingScales[scaleIndex]];
-	    [scalePopUpButton addItemWithTitle:title];
-            NSMenuItem *scaleCell = [scalePopUpButton itemWithTitle:title];
-	    [scaleCell setTag:startingScales[scaleIndex]];
-	    [scaleCell setTarget:self];
-	    [scaleCell setAction:@selector(zoomFromSender:)];
-	}
-
-	zoomFactor = 1.0f;
-	[scalePopUpButton selectItemWithTitle:@"100%"];
-        [scalePopUpButton setRefusesFirstResponder:YES];
-	[horizontalWidgetsBox addSubview:scalePopUpButton];
-    } else {
-	[scalePopUpButton removeFromSuperview];
-	[scalePopUpButton release];
-	scalePopUpButton = nil;
-    }
-
+//    if ([aView conformsToProtocol:@protocol(OAZoomableView)]) {
+//        unsigned int scaleIndex;
+//        
+//        /* create scale scalePopUpButton */
+//        scalePopUpButton = [[NSPopUpButton alloc] init];
+//        [scalePopUpButton setBordered:NO];
+//        [scalePopUpButton setFont:[NSFont systemFontOfSize:10]];
+//        for (scaleIndex = 0; startingScales[scaleIndex] != 0; scaleIndex++) {
+//            NSString *title = [NSString stringWithFormat:@"%d%%", startingScales[scaleIndex]];
+//            [scalePopUpButton addItemWithTitle:title];
+//            NSMenuItem *scaleCell = [scalePopUpButton itemWithTitle:title];
+//            [scaleCell setTag:startingScales[scaleIndex]];
+//            [scaleCell setTarget:self];
+//            [scaleCell setAction:@selector(zoomFromSender:)];
+//        }
+//        
+//        zoomFactor = 1.0f;
+//        [scalePopUpButton selectItemWithTitle:@"100%"];
+//        [scalePopUpButton setRefusesFirstResponder:YES];
+//        [horizontalWidgetsBox addSubview:scalePopUpButton];
+//    } else {
+//        [scalePopUpButton removeFromSuperview];
+//        [scalePopUpButton release];
+//        scalePopUpButton = nil;
+//    }
+    
     [super setDocumentView:aView];
-    [self addOrRemoveScrollersIfNeeded];
+//    [self addOrRemoveScrollersIfNeeded];
 }
 
 - (void)tile;

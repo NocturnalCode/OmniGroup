@@ -1,4 +1,4 @@
-// Copyright 2002-2008, 2010-2012 Omni Development, Inc. All rights reserved.
+// Copyright 2002-2008, 2010-2011 Omni Development, Inc. All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -20,7 +20,7 @@
 #import "OIInspectionSet.h"
 #import "OIInspector.h"
 #import "OIInspectorController.h"
-#import "OIInspectorGroup-Internal.h"
+#import "OIInspectorGroup.h"
 #import "OITabbedInspector.h"
 
 
@@ -630,7 +630,7 @@ static NSString *OIWorkspaceOrderPboardType = @"OIWorkspaceOrder";
 
 - (void)cancelWorkspacePanel:sender;
 {
-    [[(NSView *)sender window] orderOut:self];
+    [[sender window] orderOut:self];
     [NSApp stopModal];
 }
 
@@ -965,7 +965,7 @@ static NSString *OIWorkspaceOrderPboardType = @"OIWorkspaceOrder";
                     [(id <OIInspectableController>)target addInspectedObjects:inspectionSet];
                 }
             }
-            return YES; // continue searching
+            return YES;
         };
         
         if (!addInspectedObjects(target)) {
@@ -983,11 +983,8 @@ static NSString *OIWorkspaceOrderPboardType = @"OIWorkspaceOrder";
     registryFlags.isInspectionQueued = NO;
 
     // Don't calculate inspection set if it would be pointless
-    if (onlyIfVisible && ![self hasVisibleInspector]) {
-        [inspectionSet release];
-        inspectionSet = nil;
+    if (onlyIfVisible && ![self hasVisibleInspector])
         return;
-    }
     
     [self _getInspectedObjects];
     if (updateInspectors)
@@ -1065,25 +1062,6 @@ static NSString *OIWorkspaceOrderPboardType = @"OIWorkspaceOrder";
     }
     
     [self restoreInspectorGroups];
-}
-
-- (void)configurationsChanged;
-{
-    if (configurationsChangedTimer)
-        [configurationsChangedTimer setFireDate:[NSDate dateWithTimeIntervalSinceNow:1]];
-    else {
-        configurationsChangedTimer = [[NSTimer scheduledTimerWithTimeInterval:1 target:self selector:@selector(_inspectorConfigurationsChanged:) userInfo:nil repeats:NO] retain];
-        [[NSProcessInfo processInfo] disableSuddenTermination];
-    }
-}
-
-- (void)_inspectorConfigurationsChanged:(NSTimer *)theTimer;
-{
-    [self _saveConfigurations];
-    [self defaultsDidChange];
-    [[NSProcessInfo processInfo] enableSuddenTermination];
-    [configurationsChangedTimer release];
-    configurationsChangedTimer = nil;
 }
 
 - (void)_appWillTerminate:(NSNotification *)notification

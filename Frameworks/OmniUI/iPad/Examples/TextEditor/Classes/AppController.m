@@ -1,4 +1,4 @@
-// Copyright 2010-2012 The Omni Group. All rights reserved.
+// Copyright 2010-2011 The Omni Group.  All rights reserved.
 //
 // This software may only be used and reproduced according to the
 // terms in the file OmniSourceLicense.html, which should be
@@ -20,8 +20,6 @@ RCS_ID("$Id$")
 
 + (void)initialize;
 {
-    OBINITIALIZE;
-
     CFDictionaryRef type = UTTypeCopyDeclaration(kUTTypeRTF);
     NSLog(@"rtf = %@", type);
     if (type)
@@ -39,7 +37,7 @@ RCS_ID("$Id$")
 
 - (UIView *)pickerAnimationViewForTarget:(OUIDocument *)document;
 {
-    return ((TextViewController *)document.viewController).scrollView;
+    return ((TextViewController *)document.viewController).editor;
 }
 
 - (NSArray *)toolbarItemsForDocument:(OUIDocument *)document;
@@ -70,11 +68,6 @@ RCS_ID("$Id$")
     return _documentToolbarItems;
 }
 
-- (NSString *)feedbackMenuTitle;
-{
-    return @"Help";
-}
-
 - (void)showInspectorFromBarButtonItem:(UIBarButtonItem *)item;
 {
     OUIEditableFrame *editor = ((TextViewController *)self.document.viewController).editor;
@@ -82,9 +75,9 @@ RCS_ID("$Id$")
 }
 
 #pragma mark -
-#pragma mark OFSDocumentStoreDelegate
+#pragma mark OUIDocumentStoreDelegate
 
-- (NSString *)documentStoreDocumentTypeForNewFiles:(OFSDocumentStore *)store;
+- (NSString *)documentStoreDocumentTypeForNewFiles:(OUIDocumentStore *)store;
 {
     return (NSString *)kUTTypeRTF;
 }
@@ -92,7 +85,7 @@ RCS_ID("$Id$")
 #pragma mark -
 #pragma mark OUIDocumentPickerDelegate
 
-- (NSData *)documentPicker:(OUIDocumentPicker *)picker PDFDataForFileItem:(OFSDocumentStoreFileItem *)fileItem error:(NSError **)outError;
+- (NSData *)documentPicker:(OUIDocumentPicker *)picker PDFDataForFileItem:(OUIDocumentStoreFileItem *)fileItem error:(NSError **)outError;
 {
     RTFDocument *doc = [[RTFDocument alloc] initWithExistingFileItem:fileItem error:outError];
     if (!doc)
