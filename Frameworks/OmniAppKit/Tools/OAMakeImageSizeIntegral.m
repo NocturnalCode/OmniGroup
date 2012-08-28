@@ -86,7 +86,8 @@ int main(int argc, char *argv[])
             // -TIFFRepresentation seems to keep the source DPI, which is nice, but we want to write out a new image, killing the original DPI
             NSImage *newImage = [[NSImage alloc] initWithSize:integralSize];
             [newImage lockFocus];
-            [image compositeToPoint:NSZeroPoint operation:NSCompositeCopy];
+            //[image compositeToPoint:NSZeroPoint operation:NSCompositeCopy];
+            [image drawAtPoint:NSZeroPoint fromRect:NSZeroRect operation:NSCompositeCopy fraction:1.0];
             [newImage unlockFocus];
             [image release];
 

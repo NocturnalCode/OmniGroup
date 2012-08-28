@@ -245,7 +245,8 @@ static NSDictionary *titleFontAttributes;
     NSRectFill(NSMakeRect(0, 0, totalSize.width, totalSize.height));
 
     // Draw icon
-    [image compositeToPoint:NSMakePoint(0.0f, totalSize.height - (CGFloat)rint(totalSize.height / 2.0f + imageSize.height / 2.0f)) operation:NSCompositeSourceOver];
+    //[image compositeToPoint: operation:NSCompositeSourceOver];
+    [image drawAtPoint:NSMakePoint(0.0f, totalSize.height - (CGFloat)rint(totalSize.height / 2.0f + imageSize.height / 2.0f)) fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
     
     // Draw box around title
     titleBox.origin.x = imageSize.width + X_SPACE_BETWEEN_ICON_AND_TEXT_BOX;

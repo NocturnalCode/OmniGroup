@@ -37,7 +37,8 @@ RCS_ID("$Id$")
     NSPoint imagePoint;
     imagePoint.x = bounds.origin.x + (bounds.size.width - imageSize.width) / 2.0f;
     imagePoint.y = bounds.origin.y + (bounds.size.height - imageSize.height) / 2.0f;
-    [image compositeToPoint:imagePoint operation:NSCompositeSourceOver];
+    //[image compositeToPoint:imagePoint operation:NSCompositeSourceOver];
+    [image drawAtPoint:imagePoint fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
 }
 
 - (BOOL)acceptsIncomingDrags;

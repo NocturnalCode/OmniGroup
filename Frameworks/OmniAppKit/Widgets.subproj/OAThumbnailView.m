@@ -140,7 +140,8 @@ static NSFont *labelFont = nil;
 	
             NSImage *image = [provider thumbnailImageAtIndex:thumbnailIndex];
 	    if (image) {
-		[image compositeToPoint:point operation:NSCompositeCopy];
+		//[image compositeToPoint:point operation:NSCompositeCopy];
+            [image drawAtPoint:point fromRect:NSZeroRect operation:NSCompositeCopy fraction:1.0f];
 	    } else {
 		[self drawMissingThumbnailRect:imageRect];
                 [provider missedThumbnailImageInView:self rect:imageRect atIndex:thumbnailIndex];
